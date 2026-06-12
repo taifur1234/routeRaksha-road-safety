@@ -4,12 +4,16 @@ import cors from "cors";
 import { connectDB, getMongoStatus } from "./config/db.js";
 import { ensureAdminUser } from "./controllers/authController.js";
 import { seedInitialBlackspots } from "./controllers/blackspotSeedController.js";
+import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { createRateLimiter } from "./middleware/rateLimit.js";
+import { corsOptions, requestSanitizer, securityHeaders } from "./middleware/security.js";
 import authRoutes from "./routes/authRoutes.js";
 import chatRoutes from "./routes/chatRoutes.js";
 import contactRoutes from "./routes/contactRoutes.js";
+import emergencyRoutes from "./routes/emergencyRoutes.js";
 import placeRoutes from "./routes/placeRoutes.js";
 import reportRoutes from "./routes/reportRoutes.js";
+import routeRoutes from "./routes/routeRoutes.js";
 
 dotenv.config();
 
@@ -23,18 +27,16 @@ const apiLimiter = createRateLimiter({
 
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
-app.use(cors());
-app.use((req, res, next) => {
-  res.set("X-Content-Type-Options", "nosniff");
-  res.set("Referrer-Policy", "no-referrer");
-  res.set("X-Frame-Options", "DENY");
-  next();
-});
+app.use(securityHeaders);
+app.use(cors(corsOptions()));
 app.use(express.json({ limit: "1.5mb" }));
+app.use(requestSanitizer);
 app.use("/api", apiLimiter);
 app.use("/api/auth", authRoutes);
 app.use("/api/places", placeRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/routes", routeRoutes);
+app.use("/api/emergency-services", emergencyRoutes);
 app.use("/api/contact", contactRoutes);
 
 app.get("/", (req, res) => {
@@ -50,6 +52,8 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/chat", chatRoutes);
+app.use("/api", notFoundHandler);
+app.use(errorHandler);
 
 connectDB().then(async () => {
   await ensureAdminUser();

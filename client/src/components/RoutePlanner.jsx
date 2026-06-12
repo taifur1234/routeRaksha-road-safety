@@ -1,6 +1,16 @@
 import { Link } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import {
+  clearRouteHistory,
+  deleteSavedRoute,
+  findEmergencyServices,
+  listRouteHistory,
+  listSavedRoutes,
+  recordRouteHistory,
+  renameSavedRoute,
+  saveRoute,
+} from "../utils/routeApi";
 import { readApprovedAccidentReports } from "../utils/reportStore";
 import {
   KHARGONE_CENTER,
@@ -184,9 +194,9 @@ const severityStyles = {
   },
   low: {
     label: "Low risk",
-    color: "#ca8a04",
-    fillColor: "#facc15",
-    className: "border-yellow-200 bg-yellow-50 text-yellow-700",
+    color: "#16a34a",
+    fillColor: "#22c55e",
+    className: "border-emerald-200 bg-emerald-50 text-emerald-700",
   },
 };
 
@@ -219,6 +229,48 @@ function Icon({ name, className = "size-5", strokeWidth = 2 }) {
         <circle cx="6" cy="19" r="3" />
         <circle cx="18" cy="5" r="3" />
         <path d="M12 19h3.5a3.5 3.5 0 0 0 0-7h-7a3.5 3.5 0 0 1 0-7H12" />
+      </>
+    ),
+    save: (
+      <>
+        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+        <path d="M17 21v-8H7v8" />
+        <path d="M7 3v5h8" />
+      </>
+    ),
+    trash: (
+      <>
+        <path d="M3 6h18" />
+        <path d="M8 6V4h8v2" />
+        <path d="M19 6l-1 14H6L5 6" />
+        <path d="M10 11v5" />
+        <path d="M14 11v5" />
+      </>
+    ),
+    edit: (
+      <>
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
+      </>
+    ),
+    hospital: (
+      <>
+        <path d="M3 21h18" />
+        <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" />
+        <path d="M9 10h6" />
+        <path d="M12 7v6" />
+      </>
+    ),
+    shield: (
+      <>
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        <path d="M9 12l2 2 4-4" />
+      </>
+    ),
+    clock: (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7v5l3 2" />
       </>
     ),
     stopCircle: (
@@ -608,6 +660,67 @@ function formatSpeed(speedMetersPerSecond) {
   return `${Math.round(speedMetersPerSecond * 3.6)} km/h`;
 }
 
+const routeTypeMeta = {
+  fastest: {
+    label: "Fastest Route",
+    badge: "Fastest",
+    className: "border-sky-200 bg-sky-50 text-sky-700",
+    lineColor: "#2563eb",
+  },
+  safest: {
+    label: "Safest Route",
+    badge: "Safest",
+    className: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    lineColor: "#059669",
+  },
+  balanced: {
+    label: "Balanced Route",
+    badge: "Balanced",
+    className: "border-violet-200 bg-violet-50 text-violet-700",
+    lineColor: "#7c3aed",
+  },
+};
+
+function getRouteTypeMeta(routeType) {
+  return routeTypeMeta[routeType] || routeTypeMeta.balanced;
+}
+
+function getComparableScore(route, fastestDuration, shortestDistance) {
+  const timePenalty = fastestDuration ? ((route.duration - fastestDuration) / fastestDuration) * 22 : 0;
+  const distancePenalty = shortestDistance ? ((route.distance - shortestDistance) / shortestDistance) * 10 : 0;
+
+  return route.safety.safetyScore - timePenalty - distancePenalty;
+}
+
+function pickRouteOptions(candidates) {
+  if (!candidates.length) {
+    return [];
+  }
+
+  const fastest = candidates.reduce((best, route) => (route.duration < best.duration ? route : best), candidates[0]);
+  const safest = candidates.reduce((best, route) => {
+    if (route.safety.safetyScore === best.safety.safetyScore) {
+      return route.duration < best.duration ? route : best;
+    }
+
+    return route.safety.safetyScore > best.safety.safetyScore ? route : best;
+  }, candidates[0]);
+  const fastestDuration = fastest.duration;
+  const shortestDistance = candidates.reduce((best, route) => Math.min(best, route.distance), candidates[0].distance);
+  const balanced = candidates.reduce((best, route) => {
+    return getComparableScore(route, fastestDuration, shortestDistance) >
+      getComparableScore(best, fastestDuration, shortestDistance)
+      ? route
+      : best;
+  }, candidates[0]);
+
+  return [
+    { ...fastest, routeType: "fastest" },
+    { ...safest, routeType: "safest" },
+    { ...balanced, routeType: "balanced" },
+  ];
+}
+
 function getBearing(start, end) {
   const startLat = (start.lat * Math.PI) / 180;
   const endLat = (end.lat * Math.PI) / 180;
@@ -708,10 +821,10 @@ function getRouteProgress(position, routeLatLngs = []) {
   };
 }
 
-async function fetchRoute(origin, destination, profile, waypoints = []) {
+async function fetchRoutes(origin, destination, profile, waypoints = [], alternatives = false) {
   const routePoints = [origin, ...waypoints, destination];
   const coordinates = routePoints.map((point) => `${point.lng},${point.lat}`).join(";");
-  const url = `https://router.project-osrm.org/route/v1/${profile}/${coordinates}?overview=full&geometries=geojson&steps=false`;
+  const url = `https://router.project-osrm.org/route/v1/${profile}/${coordinates}?overview=full&geometries=geojson&steps=false&alternatives=${alternatives ? "true" : "false"}`;
   const response = await fetch(url);
 
   if (!response.ok) {
@@ -719,13 +832,18 @@ async function fetchRoute(origin, destination, profile, waypoints = []) {
   }
 
   const data = await response.json();
-  const route = data.routes?.[0];
+  const routes = data.routes || [];
 
-  if (!route) {
+  if (!routes.length) {
     throw new Error("Route not found. Try a more specific pickup or destination.");
   }
 
-  return route;
+  return routes;
+}
+
+async function fetchRoute(origin, destination, profile, waypoints = []) {
+  const routes = await fetchRoutes(origin, destination, profile, waypoints);
+  return routes[0];
 }
 
 async function fetchBikeRoute(origin, destination, carRoute, waypoints = []) {
@@ -763,6 +881,26 @@ function RoutePlanner() {
   const [isMapReady, setIsMapReady] = useState(false);
   const [isRouteLoading, setIsRouteLoading] = useState(false);
   const [routeSummary, setRouteSummary] = useState(null);
+  const [routeOptions, setRouteOptions] = useState([]);
+  const [selectedRouteType, setSelectedRouteType] = useState("balanced");
+  const [savedRoutes, setSavedRoutes] = useState([]);
+  const [routeHistory, setRouteHistory] = useState([]);
+  const [routeSearch, setRouteSearch] = useState("");
+  const [routePage, setRoutePage] = useState(1);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [savedPagination, setSavedPagination] = useState(null);
+  const [historyPagination, setHistoryPagination] = useState(null);
+  const [routeDataStatus, setRouteDataStatus] = useState("");
+  const [routeDataError, setRouteDataError] = useState("");
+  const [savingRouteType, setSavingRouteType] = useState("");
+  const [editingRouteId, setEditingRouteId] = useState("");
+  const [editingRouteName, setEditingRouteName] = useState("");
+  const [emergencyServices, setEmergencyServices] = useState([]);
+  const [emergencyStatus, setEmergencyStatus] = useState("");
+  const [emergencyError, setEmergencyError] = useState("");
+  const [showHospitals, setShowHospitals] = useState(true);
+  const [showPolice, setShowPolice] = useState(true);
+  const [emergencyRadius, setEmergencyRadius] = useState(5000);
   const [nearbyRisks, setNearbyRisks] = useState([]);
   const [isLiveTracking, setIsLiveTracking] = useState(false);
   const [navigationState, setNavigationState] = useState(null);
@@ -772,6 +910,7 @@ function RoutePlanner() {
   const dangerSegmentLayerRef = useRef(null);
   const markerLayerRef = useRef(null);
   const blackspotLayerRef = useRef(null);
+  const emergencyLayerRef = useRef(null);
   const liveNavigationLayerRef = useRef(null);
   const liveMarkerRef = useRef(null);
   const liveAccuracyCircleRef = useRef(null);
@@ -793,6 +932,46 @@ function RoutePlanner() {
   useEffect(() => {
     routeSummaryRef.current = routeSummary;
   }, [routeSummary]);
+
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setSavedRoutes([]);
+      setRouteHistory([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    async function loadRouteData() {
+      setRouteDataError("");
+
+      try {
+        const [savedData, historyData] = await Promise.all([
+          listSavedRoutes({ page: routePage, search: routeSearch }),
+          listRouteHistory({ page: historyPage }),
+        ]);
+
+        if (!isMounted) {
+          return;
+        }
+
+        setSavedRoutes(savedData.routes || []);
+        setSavedPagination(savedData.pagination || null);
+        setRouteHistory(historyData.history || []);
+        setHistoryPagination(historyData.pagination || null);
+      } catch (error) {
+        if (isMounted) {
+          setRouteDataError(error.message || "Saved route data is unavailable.");
+        }
+      }
+    }
+
+    loadRouteData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [historyPage, isLoggedIn, routePage, routeSearch]);
 
   useEffect(() => {
     return () => {
@@ -828,6 +1007,7 @@ function RoutePlanner() {
 
         markerLayerRef.current = L.layerGroup().addTo(mapRef.current);
         blackspotLayerRef.current = L.layerGroup().addTo(mapRef.current);
+        emergencyLayerRef.current = L.layerGroup().addTo(mapRef.current);
         dangerSegmentLayerRef.current = L.layerGroup().addTo(mapRef.current);
         liveNavigationLayerRef.current = L.layerGroup().addTo(mapRef.current);
         setIsMapReady(true);
@@ -1171,6 +1351,129 @@ function RoutePlanner() {
     }
   }
 
+  function renderRouteOnMap(summary) {
+    if (!summary || !window.L || !mapRef.current) {
+      return;
+    }
+
+    const L = window.L;
+    const metaForRoute = getRouteTypeMeta(summary.routeType);
+
+    if (routeLayerRef.current) {
+      mapRef.current.removeLayer(routeLayerRef.current);
+    }
+
+    markerLayerRef.current.clearLayers();
+    blackspotLayerRef.current.clearLayers();
+    dangerSegmentLayerRef.current.clearLayers();
+    emergencyLayerRef.current?.clearLayers();
+
+    L.marker([summary.origin.lat, summary.origin.lng])
+      .addTo(markerLayerRef.current)
+      .bindPopup("Current location");
+    L.marker([summary.destination.lat, summary.destination.lng])
+      .addTo(markerLayerRef.current)
+      .bindPopup("Destination");
+
+    clusterBlackspots(summary.blackspots).forEach((cluster) => {
+      if (cluster.items.length < 2) {
+        return;
+      }
+
+      const highest = cluster.items.reduce((current, item) => {
+        return getSeverityMeta(item.severity).order < getSeverityMeta(current.severity).order ? item : current;
+      }, cluster.items[0]);
+      const meta = getSeverityMeta(highest.severity);
+      const icon = L.divIcon({
+        className: "route-risk-cluster",
+        html: `<span style="background:${meta.color}">${cluster.items.length}</span>`,
+        iconSize: [42, 42],
+        iconAnchor: [21, 21],
+      });
+
+      L.marker([cluster.center.lat, cluster.center.lng], { icon })
+        .addTo(blackspotLayerRef.current)
+        .bindPopup(
+          `<div class="route-risk-popup"><strong>${cluster.items.length} nearby blackspots</strong><p>${escapeHtml(
+            cluster.items.map((item) => item.location).join(", "),
+          )}</p></div>`,
+        );
+    });
+
+    summary.blackspots.forEach((blackspot) => {
+      const style = getSeverityStyle(blackspot.severity);
+      const meta = getSeverityMeta(blackspot.severity);
+      const verification = getVerificationMeta(blackspot.verificationStatus);
+      const pulseClass = normalizeSafety(blackspot.severity) === "high" ? " route-risk-pulse" : "";
+      const icon = L.divIcon({
+        className: `route-risk-dot${pulseClass}`,
+        html: `<span style="background:${style.fillColor}; box-shadow:0 0 0 9px ${meta.softColor}, 0 0 28px ${style.fillColor}"></span>`,
+        iconSize: [26, 26],
+        iconAnchor: [13, 13],
+      });
+      const createdDate = blackspot.createdAt
+        ? new Date(blackspot.createdAt).toLocaleDateString()
+        : "Not available";
+
+      L.circle([blackspot.lat, blackspot.lng], {
+        radius: meta.radius,
+        color: style.color,
+        fillColor: style.fillColor,
+        fillOpacity: 0.16,
+        weight: 2,
+        className: "route-risk-circle",
+      }).addTo(blackspotLayerRef.current);
+
+      L.marker([blackspot.lat, blackspot.lng], { icon })
+        .addTo(blackspotLayerRef.current)
+        .bindPopup(
+          `<div class="route-risk-popup route-risk-popup--details">
+            <strong>${escapeHtml(blackspot.location || "Black spot")}</strong>
+            <span>Severity: ${escapeHtml(blackspot.severity || "Medium")}</span>
+            <span>Accidents: ${Number(blackspot.accidentFrequency || 1)}</span>
+            <span>Coordinates: ${Number(blackspot.lat).toFixed(5)}, ${Number(blackspot.lng).toFixed(5)}</span>
+            <p>${escapeHtml(blackspot.description || "No description available.")}</p>
+            <span>Date added: ${escapeHtml(createdDate)}</span>
+            <span>${Math.round(blackspot.distanceFromRoute)} m from route</span>
+            <span>${verification.label} / ${Number(blackspot.confidenceScore || 60)}% confidence</span>
+          </div>`,
+        );
+    });
+
+    routeLayerRef.current = L.polyline(summary.routeLatLngs, {
+      color: metaForRoute.lineColor,
+      opacity: 0.78,
+      weight: 6,
+      lineCap: "round",
+    }).addTo(mapRef.current);
+
+    summary.dangerousSegments.forEach((segment) => {
+      const style = getSeverityStyle(segment.severity);
+
+      L.polyline(segment.points, {
+        color: style.color,
+        opacity: 0.95,
+        weight: normalize(segment.severity) === "high" ? 10 : 8,
+        lineCap: "round",
+      }).addTo(dangerSegmentLayerRef.current);
+    });
+
+    mapRef.current.fitBounds(routeLayerRef.current.getBounds(), {
+      padding: [34, 34],
+    });
+  }
+
+  function selectRouteOption(option) {
+    stopLiveNavigation("", true);
+    setEmergencyServices([]);
+    setEmergencyStatus("");
+    setEmergencyError("");
+    setSelectedRouteType(option.routeType);
+    setRouteSummary(option);
+    renderRouteOnMap(option);
+    startLiveNavigation(option);
+  }
+
   async function submitRoute(event) {
     event.preventDefault();
 
@@ -1187,6 +1490,16 @@ function RoutePlanner() {
     setFormError("");
     stopLiveNavigation("", true);
     setRouteSummary(null);
+    setRouteOptions([]);
+    setEmergencyServices([]);
+    emergencyLayerRef.current?.clearLayers();
+    markerLayerRef.current?.clearLayers();
+    blackspotLayerRef.current?.clearLayers();
+    dangerSegmentLayerRef.current?.clearLayers();
+    if (routeLayerRef.current && mapRef.current) {
+      mapRef.current.removeLayer(routeLayerRef.current);
+      routeLayerRef.current = null;
+    }
     setIsRouteLoading(true);
 
     try {
@@ -1197,136 +1510,222 @@ function RoutePlanner() {
         selectedDestination?.label === destination ? selectedDestination : geocodeLocation(destination),
       ]);
       const corridorWaypoints = getKhargoneIndoreCorridorWaypoints(origin, destinationPoint);
-      const carRoute = await fetchRoute(origin, destinationPoint, "driving", corridorWaypoints);
-      const bikeRoute = await fetchBikeRoute(origin, destinationPoint, carRoute, corridorWaypoints);
-      const latLngs = carRoute.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
-      const routePoints = latLngs.map(([lat, lng]) => ({ lat, lng }));
+      const carRoutes = await fetchRoutes(origin, destinationPoint, "driving", corridorWaypoints, true);
+      const bikeRoute = await fetchBikeRoute(origin, destinationPoint, carRoutes[0], corridorWaypoints);
       const approvedReports = await readApprovedAccidentReports().catch(() => []);
-      const routeBlackspots = getRouteBlackspots(routePoints, approvedReports);
-      const safety = calculateRouteSafety(routeBlackspots, carRoute.distance);
-      const dangerousSegments = getDangerousRouteSegments(routePoints, routeBlackspots);
-      const L = window.L;
+      const candidates = carRoutes.slice(0, 3).map((route, index) => {
+        const latLngs = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+        const routePoints = latLngs.map(([lat, lng]) => ({ lat, lng }));
+        const routeBlackspots = getRouteBlackspots(routePoints, approvedReports);
+        const safety = calculateRouteSafety(routeBlackspots, route.distance);
+        const dangerousSegments = getDangerousRouteSegments(routePoints, routeBlackspots);
 
-      if (routeLayerRef.current) {
-        mapRef.current.removeLayer(routeLayerRef.current);
-      }
-
-      markerLayerRef.current.clearLayers();
-      blackspotLayerRef.current.clearLayers();
-      dangerSegmentLayerRef.current.clearLayers();
-      L.marker([origin.lat, origin.lng]).addTo(markerLayerRef.current).bindPopup("Current location");
-      L.marker([destinationPoint.lat, destinationPoint.lng])
-        .addTo(markerLayerRef.current)
-        .bindPopup("Destination");
-
-      clusterBlackspots(routeBlackspots).forEach((cluster) => {
-        if (cluster.items.length < 2) {
-          return;
-        }
-
-        const highest = cluster.items.reduce((current, item) => {
-          return getSeverityMeta(item.severity).order < getSeverityMeta(current.severity).order ? item : current;
-        }, cluster.items[0]);
-        const meta = getSeverityMeta(highest.severity);
-        const icon = L.divIcon({
-          className: "route-risk-cluster",
-          html: `<span style="background:${meta.color}">${cluster.items.length}</span>`,
-          iconSize: [42, 42],
-          iconAnchor: [21, 21],
-        });
-
-        L.marker([cluster.center.lat, cluster.center.lng], { icon })
-          .addTo(blackspotLayerRef.current)
-          .bindPopup(
-            `<div class="route-risk-popup"><strong>${cluster.items.length} nearby blackspots</strong><p>${escapeHtml(
-              cluster.items.map((item) => item.location).join(", "),
-            )}</p></div>`,
-          );
+        return {
+          id: `route-${index}`,
+          from: origin.label,
+          to: destinationPoint.label,
+          routeMode: corridorWaypoints.length ? "Khargone-Indore highway corridor" : "OSRM route option",
+          car: {
+            distance: formatDistance(route.distance),
+            duration: formatDuration(route.duration),
+          },
+          bike: {
+            distance: formatDistance(bikeRoute.distance),
+            duration: `${bikeRoute.isEstimate ? "~" : ""}${formatDuration(bikeRoute.duration)}`,
+            isEstimate: Boolean(bikeRoute.isEstimate),
+          },
+          distance: route.distance,
+          duration: route.duration,
+          blackspots: routeBlackspots,
+          safety,
+          origin,
+          destination: destinationPoint,
+          routeLatLngs: latLngs,
+          dangerousSegments,
+          routeDistanceMeters: route.distance,
+          routeDurationSeconds: route.duration,
+          routeAverageSpeed: route.duration > 0 ? route.distance / route.duration : 8,
+          blackSpotCount: routeBlackspots.length,
+        };
       });
+      const options = pickRouteOptions(candidates);
+      const preferred = options.find((option) => option.routeType === "balanced") || options[0];
 
-      routeBlackspots.forEach((blackspot) => {
-        const style = getSeverityStyle(blackspot.severity);
-        const meta = getSeverityMeta(blackspot.severity);
-        const verification = getVerificationMeta(blackspot.verificationStatus);
-        const pulseClass = normalizeSafety(blackspot.severity) === "high" ? " route-risk-pulse" : "";
-        const icon = L.divIcon({
-          className: `route-risk-dot${pulseClass}`,
-          html: `<span style="background:${style.fillColor}; box-shadow:0 0 0 9px ${meta.softColor}, 0 0 28px ${style.fillColor}"></span>`,
-          iconSize: [26, 26],
-          iconAnchor: [13, 13],
-        });
+      setRouteOptions(options);
+      setSelectedRouteType(preferred.routeType);
+      setRouteSummary(preferred);
+      renderRouteOnMap(preferred);
+      startLiveNavigation(preferred);
 
-        L.circle([blackspot.lat, blackspot.lng], {
-          radius: meta.radius,
-          color: style.color,
-          fillColor: style.fillColor,
-          fillOpacity: 0.16,
-          weight: 2,
-          className: "route-risk-circle",
-        }).addTo(blackspotLayerRef.current);
-
-        L.marker([blackspot.lat, blackspot.lng], { icon })
-          .addTo(blackspotLayerRef.current)
-          .bindPopup(
-            `<div class="route-risk-popup"><strong>${escapeHtml(style.label)}</strong><p>${escapeHtml(
-              blackspot.location,
-            )}</p><span>${Math.round(blackspot.distanceFromRoute)} m from route</span><span>${
-              verification.label
-            } / ${Number(blackspot.confidenceScore || 60)}% confidence</span></div>`,
-          );
-      });
-
-      routeLayerRef.current = L.polyline(latLngs, {
-        color: "#4f46e5",
-        opacity: 0.76,
-        weight: 6,
-        lineCap: "round",
-      }).addTo(mapRef.current);
-
-      dangerousSegments.forEach((segment) => {
-        const style = getSeverityStyle(segment.severity);
-
-        L.polyline(segment.points, {
-          color: style.color,
-          opacity: 0.95,
-          weight: normalize(segment.severity) === "high" ? 10 : 8,
-          lineCap: "round",
-        }).addTo(dangerSegmentLayerRef.current);
-      });
-
-      mapRef.current.fitBounds(routeLayerRef.current.getBounds(), {
-        padding: [34, 34],
-      });
-
-      const routeSummaryPayload = {
-        from: origin.label,
-        to: destinationPoint.label,
-        routeMode: corridorWaypoints.length ? "Khargone-Indore highway corridor" : "Shortest route from selected pins",
-        car: {
-          distance: formatDistance(carRoute.distance),
-          duration: formatDuration(carRoute.duration),
-        },
-        bike: {
-          distance: formatDistance(bikeRoute.distance),
-          duration: `${bikeRoute.isEstimate ? "~" : ""}${formatDuration(bikeRoute.duration)}`,
-          isEstimate: Boolean(bikeRoute.isEstimate),
-        },
-        blackspots: routeBlackspots,
-        safety,
-        origin,
+      recordRouteHistory({
+        source: origin,
         destination: destinationPoint,
-        routeLatLngs: latLngs,
-        routeDistanceMeters: carRoute.distance,
-        routeDurationSeconds: carRoute.duration,
-        routeAverageSpeed: carRoute.duration > 0 ? carRoute.distance / carRoute.duration : 8,
-      };
-
-      setRouteSummary(routeSummaryPayload);
-      startLiveNavigation(routeSummaryPayload);
+        safetyScore: preferred.safety.safetyScore,
+        routeType: preferred.routeType,
+        distanceMeters: preferred.routeDistanceMeters,
+        durationSeconds: preferred.routeDurationSeconds,
+        blackSpotCount: preferred.blackSpotCount,
+      })
+        .then(() => listRouteHistory({ page: 1 }))
+        .then((data) => {
+          setHistoryPage(1);
+          setRouteHistory(data.history || []);
+          setHistoryPagination(data.pagination || null);
+        })
+        .catch(() => {});
     } catch (error) {
       setFormError(error.message || "Route not found. Try a more specific location.");
     } finally {
       setIsRouteLoading(false);
+    }
+  }
+
+  async function refreshSavedRoutes() {
+    const data = await listSavedRoutes({ page: routePage, search: routeSearch });
+    setSavedRoutes(data.routes || []);
+    setSavedPagination(data.pagination || null);
+  }
+
+  async function handleSaveRoute(option) {
+    if (!option) {
+      return;
+    }
+
+    setSavingRouteType(option.routeType);
+    setRouteDataError("");
+    setRouteDataStatus("");
+
+    try {
+      const meta = getRouteTypeMeta(option.routeType);
+      await saveRoute({
+        routeName: `${meta.label}: ${option.from} to ${option.to}`.slice(0, 80),
+        source: option.origin,
+        destination: option.destination,
+        safetyScore: option.safety.safetyScore,
+        routeType: option.routeType,
+        distanceMeters: option.routeDistanceMeters,
+        durationSeconds: option.routeDurationSeconds,
+        blackSpotCount: option.blackSpotCount,
+      });
+      await refreshSavedRoutes();
+      setRouteDataStatus("Route saved.");
+    } catch (error) {
+      setRouteDataError(error.message || "Could not save route.");
+    } finally {
+      setSavingRouteType("");
+    }
+  }
+
+  async function handleRenameSavedRoute(routeId) {
+    const routeName = editingRouteName.trim();
+
+    if (routeName.length < 2) {
+      setRouteDataError("Route name must be at least 2 characters.");
+      return;
+    }
+
+    try {
+      await renameSavedRoute(routeId, routeName);
+      setEditingRouteId("");
+      setEditingRouteName("");
+      await refreshSavedRoutes();
+      setRouteDataStatus("Route renamed.");
+    } catch (error) {
+      setRouteDataError(error.message || "Could not rename route.");
+    }
+  }
+
+  async function handleDeleteSavedRoute(routeId) {
+    try {
+      await deleteSavedRoute(routeId);
+      await refreshSavedRoutes();
+      setRouteDataStatus("Route deleted.");
+    } catch (error) {
+      setRouteDataError(error.message || "Could not delete route.");
+    }
+  }
+
+  async function handleClearHistory() {
+    try {
+      await clearRouteHistory();
+      setHistoryPage(1);
+      setRouteHistory([]);
+      setHistoryPagination({ page: 1, limit: 8, total: 0, pages: 0 });
+      setRouteDataStatus("Route history cleared.");
+    } catch (error) {
+      setRouteDataError(error.message || "Could not clear route history.");
+    }
+  }
+
+  function renderEmergencyMarkers(services) {
+    if (!window.L || !emergencyLayerRef.current) {
+      return;
+    }
+
+    const L = window.L;
+    emergencyLayerRef.current.clearLayers();
+
+    services.forEach((service) => {
+      const isHospital = service.type === "hospital";
+      const color = isHospital ? "#0ea5e9" : "#7c3aed";
+      const icon = L.divIcon({
+        className: `emergency-marker emergency-marker--${service.type}`,
+        html: `<span style="background:${color}">${isHospital ? "H" : "P"}</span>`,
+        iconSize: [30, 30],
+        iconAnchor: [15, 15],
+      });
+
+      L.marker([service.lat, service.lng], { icon })
+        .addTo(emergencyLayerRef.current)
+        .bindPopup(
+          `<div class="route-risk-popup">
+            <strong>${escapeHtml(service.name)}</strong>
+            <span>${isHospital ? "Hospital" : "Police Station"}</span>
+            ${service.address ? `<p>${escapeHtml(service.address)}</p>` : ""}
+            <span>${formatMeters(service.distanceFromRouteMeters ?? service.distanceFromCenterMeters)} from route</span>
+            ${service.phone ? `<span>${escapeHtml(service.phone)}</span>` : ""}
+          </div>`,
+        );
+    });
+  }
+
+  async function loadEmergencyServices() {
+    if (!routeSummary?.routeLatLngs?.length) {
+      setEmergencyError("Show a route first.");
+      return;
+    }
+
+    const types = [
+      showHospitals ? "hospital" : "",
+      showPolice ? "police" : "",
+    ].filter(Boolean);
+
+    if (!types.length) {
+      setEmergencyServices([]);
+      emergencyLayerRef.current?.clearLayers();
+      return;
+    }
+
+    setEmergencyStatus("Finding nearby emergency services...");
+    setEmergencyError("");
+
+    try {
+      const sampledRoutePoints = routeSummary.routeLatLngs
+        .filter((_, index) => index % 8 === 0)
+        .map(([lat, lng]) => ({ lat, lng }));
+      const data = await findEmergencyServices({
+        routePoints: sampledRoutePoints,
+        radiusMeters: emergencyRadius,
+        types,
+      });
+      const services = data.services || [];
+
+      setEmergencyServices(services);
+      renderEmergencyMarkers(services);
+      setEmergencyStatus(data.fallback ? "Showing local fallback emergency services." : "Emergency services loaded.");
+    } catch (error) {
+      setEmergencyError(error.message || "Emergency services are unavailable.");
+      setEmergencyStatus("");
     }
   }
 
@@ -1510,6 +1909,83 @@ function RoutePlanner() {
             </div>
           </form>
 
+          {isRouteLoading && (
+            <div className="mt-5 grid gap-3">
+              {[0, 1, 2].map((item) => (
+                <div key={item} className="h-32 animate-pulse rounded-lg border border-[#d8e5d3] bg-[#f1f6f0]" />
+              ))}
+            </div>
+          )}
+
+          {!isRouteLoading && routeOptions.length > 0 && (
+            <div className="mt-5">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-black text-[#173a0b]">Compare routes</p>
+                <span className="rounded-full border border-[#d8e5d3] bg-white px-3 py-1 text-[11px] font-black text-[#46623d]">
+                  {routeOptions.length} options
+                </span>
+              </div>
+              <div className="mt-3 grid gap-3">
+                {routeOptions.map((option) => {
+                  const meta = getRouteTypeMeta(option.routeType);
+                  const isSelected = selectedRouteType === option.routeType;
+
+                  return (
+                    <article
+                      key={option.routeType}
+                      className={`rounded-lg border bg-white p-4 transition ${
+                        isSelected ? "border-[#173a0b] shadow-[0_16px_34px_rgba(16,47,0,0.12)]" : "border-[#d8e5d3]"
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.className}`}>
+                            {meta.badge}
+                          </span>
+                          <h3 className="mt-2 text-base font-black text-[#173a0b]">{meta.label}</h3>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => selectRouteOption(option)}
+                          className="min-h-9 rounded-full border border-[#173a0b] px-3 text-xs font-black text-[#173a0b] transition hover:bg-[#f1f6f0]"
+                        >
+                          {isSelected ? "Selected" : "View"}
+                        </button>
+                      </div>
+                      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                        <div className="rounded-lg bg-[#f7faf6] p-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#78936d]">Distance</p>
+                          <p className="mt-1 text-sm font-black text-[#173a0b]">{option.car.distance}</p>
+                        </div>
+                        <div className="rounded-lg bg-[#f7faf6] p-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#78936d]">Time</p>
+                          <p className="mt-1 text-sm font-black text-[#173a0b]">{option.car.duration}</p>
+                        </div>
+                        <div className="rounded-lg bg-[#f7faf6] p-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#78936d]">Safety</p>
+                          <p className="mt-1 text-sm font-black text-[#173a0b]">{option.safety.safetyScore}/100</p>
+                        </div>
+                        <div className="rounded-lg bg-[#f7faf6] p-3">
+                          <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#78936d]">Black Spots</p>
+                          <p className="mt-1 text-sm font-black text-[#173a0b]">{option.blackSpotCount}</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleSaveRoute(option)}
+                        disabled={savingRouteType === option.routeType}
+                        className="mt-3 flex min-h-10 w-full items-center justify-center gap-2 rounded-full bg-[#173a0b] px-4 text-xs font-black text-white transition hover:bg-[#102f00] disabled:opacity-70"
+                      >
+                        <Icon name="save" className="size-4" />
+                        {savingRouteType === option.routeType ? "Saving..." : "Save route"}
+                      </button>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {routeSummary && (
             <div className="mt-5 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] p-4">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-[#46623d]">
@@ -1679,8 +2155,264 @@ function RoutePlanner() {
               >
                 Open in OpenStreetMap
               </button>
+
+              <div className="mt-4 rounded-lg border border-[#d8e5d3] bg-white p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-black text-[#173a0b]">Nearby emergency services</p>
+                    <p className="mt-1 text-xs font-bold text-[#46623d]">
+                      Hospitals and police stations near this route.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={loadEmergencyServices}
+                    className="min-h-10 rounded-full bg-[#173a0b] px-4 text-xs font-black text-white transition hover:bg-[#102f00]"
+                  >
+                    Search
+                  </button>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <label className="flex items-center gap-2 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] px-3 py-2 text-xs font-black text-[#173a0b]">
+                    <input
+                      type="checkbox"
+                      checked={showHospitals}
+                      onChange={(event) => setShowHospitals(event.target.checked)}
+                    />
+                    Hospitals
+                  </label>
+                  <label className="flex items-center gap-2 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] px-3 py-2 text-xs font-black text-[#173a0b]">
+                    <input
+                      type="checkbox"
+                      checked={showPolice}
+                      onChange={(event) => setShowPolice(event.target.checked)}
+                    />
+                    Police
+                  </label>
+                  <label className="grid gap-1 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] px-3 py-2 text-xs font-black text-[#173a0b]">
+                    Radius
+                    <select
+                      value={emergencyRadius}
+                      onChange={(event) => setEmergencyRadius(Number(event.target.value))}
+                      className="rounded-md border border-[#cddcc7] bg-white px-2 py-1 text-xs font-bold"
+                    >
+                      <option value={3000}>3 km</option>
+                      <option value={5000}>5 km</option>
+                      <option value={10000}>10 km</option>
+                    </select>
+                  </label>
+                </div>
+                {emergencyStatus && (
+                  <p className="mt-3 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] px-3 py-2 text-xs font-bold text-[#46623d]">
+                    {emergencyStatus}
+                  </p>
+                )}
+                {emergencyError && (
+                  <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">
+                    {emergencyError}
+                  </p>
+                )}
+                {emergencyServices.length > 0 && (
+                  <div className="mt-3 grid gap-2">
+                    {emergencyServices.slice(0, 5).map((service) => (
+                      <div key={service.id} className="flex items-start justify-between gap-3 rounded-lg bg-[#f7faf6] p-3">
+                        <div>
+                          <p className="text-sm font-black text-[#173a0b]">{service.name}</p>
+                          <p className="mt-1 text-xs font-bold text-[#46623d]">
+                            {service.type === "hospital" ? "Hospital" : "Police Station"}
+                          </p>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-[#46623d]">
+                          {formatMeters(service.distanceFromRouteMeters ?? service.distanceFromCenterMeters)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
+
+          <div className="mt-5 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm font-black text-[#173a0b]">Saved routes</p>
+              <input
+                value={routeSearch}
+                onChange={(event) => {
+                  setRoutePage(1);
+                  setRouteSearch(event.target.value);
+                }}
+                placeholder="Search"
+                className="min-h-9 rounded-full border border-[#cddcc7] bg-white px-3 text-xs font-bold text-[#173a0b] outline-none focus:border-[#173a0b]"
+              />
+            </div>
+            {routeDataStatus && (
+              <p className="mt-3 rounded-lg border border-[#d8e5d3] bg-white px-3 py-2 text-xs font-bold text-[#46623d]">
+                {routeDataStatus}
+              </p>
+            )}
+            {routeDataError && (
+              <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">
+                {routeDataError}
+              </p>
+            )}
+            <div className="mt-3 grid gap-2">
+              {savedRoutes.length ? (
+                savedRoutes.map((route) => {
+                  const meta = getRouteTypeMeta(route.routeType);
+                  const isEditing = editingRouteId === route.id;
+
+                  return (
+                    <div key={route.id} className="rounded-lg bg-white p-3">
+                      {isEditing ? (
+                        <div className="flex gap-2">
+                          <input
+                            value={editingRouteName}
+                            onChange={(event) => setEditingRouteName(event.target.value)}
+                            className="min-h-10 min-w-0 flex-1 rounded-lg border border-[#cddcc7] px-3 text-sm font-bold"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRenameSavedRoute(route.id)}
+                            className="rounded-full bg-[#173a0b] px-3 text-xs font-black text-white"
+                          >
+                            Save
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-sm font-black text-[#173a0b]">{route.routeName}</p>
+                              <p className="mt-1 text-xs font-bold text-[#46623d]">
+                                {route.source.label} to {route.destination.label}
+                              </p>
+                            </div>
+                            <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.className}`}>
+                              {meta.badge}
+                            </span>
+                          </div>
+                          <div className="mt-3 flex flex-wrap gap-2 text-[11px] font-black text-[#46623d]">
+                            <span className="rounded-full bg-[#f1f6f0] px-2.5 py-1">{route.safetyScore}/100 safety</span>
+                            <span className="rounded-full bg-[#f1f6f0] px-2.5 py-1">{formatDistance(route.distanceMeters)}</span>
+                            <span className="rounded-full bg-[#f1f6f0] px-2.5 py-1">{formatDuration(route.durationSeconds)}</span>
+                          </div>
+                          <div className="mt-3 flex gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingRouteId(route.id);
+                                setEditingRouteName(route.routeName);
+                              }}
+                              className="grid size-9 place-items-center rounded-full border border-[#d8e5d3] text-[#173a0b]"
+                              aria-label="Rename saved route"
+                            >
+                              <Icon name="edit" className="size-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteSavedRoute(route.id)}
+                              className="grid size-9 place-items-center rounded-full border border-red-200 bg-red-50 text-red-700"
+                              aria-label="Delete saved route"
+                            >
+                              <Icon name="trash" className="size-4" />
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-sm font-semibold leading-6 text-[#46623d]">
+                  Save a route to keep it here.
+                </p>
+              )}
+            </div>
+            {savedPagination?.pages > 1 && (
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  disabled={routePage <= 1}
+                  onClick={() => setRoutePage((page) => Math.max(1, page - 1))}
+                  className="rounded-full border border-[#d8e5d3] bg-white px-3 py-2 text-xs font-black text-[#46623d] disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <span className="text-xs font-black text-[#46623d]">
+                  Page {savedPagination.page} of {savedPagination.pages}
+                </span>
+                <button
+                  type="button"
+                  disabled={routePage >= savedPagination.pages}
+                  onClick={() => setRoutePage((page) => page + 1)}
+                  className="rounded-full border border-[#d8e5d3] bg-white px-3 py-2 text-xs font-black text-[#46623d] disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-5 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] p-4">
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-sm font-black text-[#173a0b]">
+                Route history
+                {historyPagination?.total ? (
+                  <span className="ml-2 text-xs font-bold text-[#78936d]">({historyPagination.total})</span>
+                ) : null}
+              </p>
+              <button
+                type="button"
+                onClick={handleClearHistory}
+                className="rounded-full border border-[#d8e5d3] bg-white px-3 py-1.5 text-xs font-black text-[#46623d]"
+              >
+                Clear
+              </button>
+            </div>
+            {routeHistory.length ? (
+              <div className="mt-3 grid gap-2">
+                {routeHistory.map((item) => (
+                  <div key={item.id} className="rounded-lg bg-white p-3">
+                    <p className="text-sm font-black text-[#173a0b]">
+                      {item.source.label} to {item.destination.label}
+                    </p>
+                    <p className="mt-1 text-xs font-bold text-[#46623d]">
+                      {getRouteTypeMeta(item.routeType).label} / {item.safetyScore}/100 /{" "}
+                      {new Date(item.searchedAt).toLocaleString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-3 text-sm font-semibold leading-6 text-[#46623d]">
+                Your latest searches will appear here.
+              </p>
+            )}
+            {historyPagination?.pages > 1 && (
+              <div className="mt-3 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  disabled={historyPage <= 1}
+                  onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}
+                  className="rounded-full border border-[#d8e5d3] bg-white px-3 py-2 text-xs font-black text-[#46623d] disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <span className="text-xs font-black text-[#46623d]">
+                  Page {historyPagination.page} of {historyPagination.pages}
+                </span>
+                <button
+                  type="button"
+                  disabled={historyPage >= historyPagination.pages}
+                  onClick={() => setHistoryPage((page) => page + 1)}
+                  className="rounded-full border border-[#d8e5d3] bg-white px-3 py-2 text-xs font-black text-[#46623d] disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="mt-5 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] p-4">
             <div className="flex items-center justify-between gap-3">

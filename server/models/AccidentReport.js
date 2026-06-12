@@ -10,10 +10,14 @@ const accidentReportSchema = new mongoose.Schema(
     latitude: {
       type: Number,
       default: null,
+      min: -90,
+      max: 90,
     },
     longitude: {
       type: Number,
       default: null,
+      min: -180,
+      max: 180,
     },
     type: {
       type: String,
@@ -138,6 +142,21 @@ const accidentReportSchema = new mongoose.Schema(
   },
   { timestamps: true },
 );
+
+accidentReportSchema.pre("validate", function validateCoordinates(next) {
+  const hasLatitude = this.latitude !== null && this.latitude !== undefined;
+  const hasLongitude = this.longitude !== null && this.longitude !== undefined;
+
+  if (hasLatitude !== hasLongitude) {
+    next(new Error("Latitude and longitude must be provided together."));
+    return;
+  }
+
+  next();
+});
+
+accidentReportSchema.index({ status: 1, latitude: 1, longitude: 1 });
+accidentReportSchema.index({ reporterEmail: 1, createdAt: -1 });
 
 accidentReportSchema.index(
   { sourceId: 1 },

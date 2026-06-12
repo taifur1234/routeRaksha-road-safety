@@ -28,8 +28,8 @@ const severityMeta = {
   },
   low: {
     label: "Low risk",
-    color: "#facc15",
-    softColor: "rgba(250,204,21,0.22)",
+    color: "#22c55e",
+    softColor: "rgba(34,197,94,0.2)",
     radius: 210,
     score: 12,
     order: 2,
