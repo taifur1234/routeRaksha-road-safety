@@ -37,9 +37,59 @@ const userSchema = new mongoose.Schema(
       enum: ["user", "admin"],
       default: "user",
     },
+    reputationPoints: {
+      type: Number,
+      min: 0,
+      default: 0,
+      index: true,
+    },
+    reportsSubmitted: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    approvedReports: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    rejectedReports: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    trustLevel: {
+      type: String,
+      enum: ["New User", "Contributor", "Trusted Reporter", "Expert Reporter"],
+      default: "New User",
+      index: true,
+    },
+    badges: {
+      type: [
+        {
+          key: {
+            type: String,
+            required: true,
+            trim: true,
+          },
+          label: {
+            type: String,
+            required: true,
+            trim: true,
+          },
+          earnedAt: {
+            type: Date,
+            default: Date.now,
+          },
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true },
 );
+
+userSchema.index({ reputationPoints: -1, approvedReports: -1 });
 
 const User = mongoose.model("User", userSchema);
 

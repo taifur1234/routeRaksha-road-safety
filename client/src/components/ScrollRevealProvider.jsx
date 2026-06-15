@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-const REVEAL_SELECTOR = "main section, main .motion-card, main footer";
+const REVEAL_SELECTOR = "main section, main .motion-card";
 
 function ScrollRevealProvider({ children, watchKey }) {
   useEffect(() => {

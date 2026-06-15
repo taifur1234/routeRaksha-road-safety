@@ -1,7 +1,7 @@
 import User from "../models/User.js";
 import { hashPassword, verifyPassword } from "../utils/password.js";
 import { signToken } from "../utils/token.js";
-import { cleanText, isStrongPassword, isValidEmail } from "../utils/validation.js";
+import { cleanText, isStrongPassword, isValidEmail, isValidImageData } from "../utils/validation.js";
 
 function normalizeEmail(email) {
   return String(email || "").trim().toLowerCase();
@@ -15,10 +15,33 @@ function sendAuthResponse(res, user) {
     role: user.role,
     provider: user.provider,
     photoURL: user.photoURL,
+    hasPassword: Boolean(user.passwordHash),
     token: signToken({ id: user._id, email: user.email, role: user.role }),
   };
 
   return res.json({ ok: true, user: sessionUser });
+}
+
+function serializeSessionUser(user) {
+  return {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    provider: user.provider,
+    photoURL: user.photoURL,
+    hasPassword: Boolean(user.passwordHash),
+  };
+}
+
+function isValidProfilePhoto(value) {
+  if (!value) {
+    return true;
+  }
+
+  const photoURL = String(value).trim();
+
+  return (photoURL.length <= 500 && /^https?:\/\/[^\s<>]+$/i.test(photoURL)) || isValidImageData(photoURL, 450_000);
 }
 
 async function ensureAdminUser() {
@@ -136,4 +159,27 @@ async function googleLogin(req, res) {
   return sendAuthResponse(res, user);
 }
 
-export { signup, login, googleLogin, ensureAdminUser };
+async function getProfile(req, res) {
+  return res.json({ ok: true, user: serializeSessionUser(req.user) });
+}
+
+async function updateProfile(req, res) {
+  const cleanName = cleanText(req.body.name, 60);
+  const photoURL = String(req.body.photoURL || "").trim();
+
+  if (cleanName.length < 2 || cleanName.length > 60) {
+    return res.status(400).json({ ok: false, message: "Name must be between 2 and 60 characters." });
+  }
+
+  if (!isValidProfilePhoto(photoURL)) {
+    return res.status(400).json({ ok: false, message: "Profile photo must be a valid image file." });
+  }
+
+  req.user.name = cleanName;
+  req.user.photoURL = photoURL;
+  await req.user.save();
+
+  return res.json({ ok: true, user: serializeSessionUser(req.user) });
+}
+
+export { signup, login, googleLogin, getProfile, updateProfile, ensureAdminUser };

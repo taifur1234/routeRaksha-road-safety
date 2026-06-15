@@ -7,7 +7,7 @@ import ValueSection from "../components/home/ValueSection";
 
 function MainPage() {
   return (
-    <main className="motion-page min-h-screen bg-[#fbfcfa] text-[#173a0b]">
+    <main className="motion-page rr-shell min-h-screen text-slate-950">
       <HomeHero />
       <ValueSection />
       <HowItWorks />

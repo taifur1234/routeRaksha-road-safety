@@ -9,6 +9,10 @@ function toRadians(value) {
 }
 
 function distanceInMeters(a, b) {
+  if (!a || !b) {
+    return Infinity;
+  }
+
   const earthRadius = 6371000;
   const dLat = toRadians(b.lat - a.lat);
   const dLng = toRadians(b.lng - a.lng);
@@ -22,6 +26,10 @@ function distanceInMeters(a, b) {
 }
 
 function distancePointToSegment(point, segmentStart, segmentEnd) {
+  if (!point || !segmentStart || !segmentEnd) {
+    return Infinity;
+  }
+
   const metersPerDegreeLat = 111320;
   const metersPerDegreeLng = 111320 * Math.cos(toRadians(point.lat));
   const startX = (segmentStart.lng - point.lng) * metersPerDegreeLng;
@@ -58,7 +66,9 @@ function distanceToRoute(point, routePoints = []) {
 }
 
 function normalizeRoutePoints(points = []) {
-  return points
+  const safePoints = Array.isArray(points) ? points : [];
+
+  return safePoints
     .slice(0, 250)
     .map((point) => ({
       lat: toFiniteNumber(point?.lat ?? point?.[0]),
@@ -77,6 +87,10 @@ function getRouteCenter(routePoints) {
 }
 
 function normalizeService(element, center, routePoints) {
+  if (!element || !center) {
+    return null;
+  }
+
   const lat = toFiniteNumber(element.lat ?? element.center?.lat);
   const lng = toFiniteNumber(element.lon ?? element.center?.lon);
 
@@ -146,7 +160,7 @@ function getFallbackServices(center, routePoints) {
 
 async function fetchEmergencyServices({ center, radiusMeters, types, routePoints }) {
   const radius = Math.min(Math.max(Number(radiusMeters) || 3000, 500), MAX_RADIUS_METERS);
-  const normalizedTypes = types.filter((type) => ["hospital", "police"].includes(type));
+  const normalizedTypes = (Array.isArray(types) ? types : []).filter((type) => ["hospital", "police"].includes(type));
   const selectedTypes = normalizedTypes.length ? normalizedTypes : ["hospital", "police"];
   const cacheKey = [
     center.lat.toFixed(3),

@@ -106,10 +106,10 @@ function HistoryMap({ reports }) {
       <div className="absolute inset-0 opacity-30 [background-image:linear-gradient(rgba(148,163,184,0.24)_1px,transparent_1px),linear-gradient(90deg,rgba(148,163,184,0.24)_1px,transparent_1px)] [background-size:34px_34px]" />
       <svg className="absolute inset-0 h-full w-full" viewBox="0 0 520 260" fill="none">
         <path d="M20 190 C110 140 165 80 255 120 C345 160 390 130 500 60" stroke="rgba(255,255,255,0.2)" strokeWidth="18" strokeLinecap="round" />
-        <path d="M20 190 C110 140 165 80 255 120 C345 160 390 130 500 60" stroke="#818cf8" strokeWidth="4" strokeDasharray="14 12" strokeLinecap="round" />
+        <path d="M20 190 C110 140 165 80 255 120 C345 160 390 130 500 60" stroke="#8ef35f" strokeWidth="4" strokeDasharray="14 12" strokeLinecap="round" />
       </svg>
       <div className="relative z-10">
-        <p className="text-xs font-black uppercase tracking-[0.22em] text-indigo-200">Map history</p>
+        <p className="text-xs font-black uppercase tracking-[0.22em] text-[#baf89f]">Map history</p>
         <h2 className="mt-2 text-2xl font-black">Submitted blackspot footprint</h2>
       </div>
       {reports.slice(0, 4).map((report, index) => (

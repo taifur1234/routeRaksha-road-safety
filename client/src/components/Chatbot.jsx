@@ -14,16 +14,14 @@ const quickQuestions = [
 ];
 
 const avatarColors = [
-  "#1a73e8",
-  "#d93025",
   "#188038",
   "#f9ab00",
-  "#a142f4",
-  "#e8710a",
-  "#0097a7",
-  "#c5221f",
-  "#5f6368",
-  "#7b1fa2",
+  "#167a43",
+  "#0b3d25",
+  "#2f8f4e",
+  "#6aa84f",
+  "#b7791f",
+  "#547065",
 ];
 
 function getUserDisplayName(user) {
@@ -211,19 +209,19 @@ function Chatbot() {
   return (
     <div className="fixed bottom-5 right-5 z-[90]">
       {isOpen && (
-        <section className="logout-modal-panel flex h-[34rem] w-[min(calc(100vw-2.5rem),25rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-[0_28px_90px_rgba(15,23,42,0.24)]">
-          <header className="relative overflow-hidden bg-slate-950 px-4 py-4 text-white">
-            <div className="absolute inset-0 opacity-50 [background-image:linear-gradient(rgba(129,140,248,0.12)_1px,transparent_1px),linear-gradient(90deg,rgba(129,140,248,0.12)_1px,transparent_1px)] [background-size:28px_28px]" />
-            <div className="absolute -right-8 -top-8 size-28 rounded-full bg-indigo-500/20" />
+        <section className="logout-modal-panel flex h-[34rem] w-[min(calc(100vw-2.5rem),25rem)] flex-col overflow-hidden rounded-2xl border border-[#cfe4d2] bg-white text-[#082015] shadow-[0_28px_90px_rgba(8,32,21,0.24)]">
+          <header className="relative overflow-hidden bg-[#082015] px-4 py-4 text-white">
+            <div className="absolute inset-0 rr-grid opacity-20" />
+            <div className="absolute inset-y-0 right-9 w-1 bg-[repeating-linear-gradient(to_bottom,#f5c451_0_18px,transparent_18px_34px)] opacity-70" />
             <div className="relative z-10 flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <span className="grid size-11 place-items-center rounded-xl bg-indigo-500 text-white shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
+              <span className="grid size-11 place-items-center rounded-xl bg-[#8ef35f] text-[#082015] shadow-[0_12px_28px_rgba(0,0,0,0.18)]">
                 <Icon name="bot" className="size-5" />
               </span>
               <div>
                 <p className="text-sm font-black">RouteRaksha Assistant</p>
-                <p className="mt-0.5 flex items-center gap-2 text-xs font-bold text-indigo-200">
-                  <span className="size-2 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.9)]" />
+                <p className="mt-0.5 flex items-center gap-2 text-xs font-bold text-[#baf89f]">
+                  <span className="size-2 rounded-full bg-[#8ef35f] shadow-[0_0_12px_rgba(142,243,95,0.9)]" />
                   {isLoggedIn ? `Chatting with ${firstName}` : "Online now"}
                 </p>
               </div>
@@ -239,9 +237,9 @@ function Chatbot() {
             </div>
           </header>
 
-          <div className="flex-1 space-y-4 overflow-y-auto bg-slate-50 p-4">
-            <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
-              <p className="text-xs font-black uppercase tracking-[0.16em] text-slate-500">
+          <div className="flex-1 space-y-4 overflow-y-auto bg-[#f0f8ef] p-4">
+            <div className="rounded-2xl border border-[#cfe4d2] bg-white p-3 shadow-sm">
+              <p className="text-xs font-black uppercase tracking-[0.16em] text-[#547065]">
                 Quick questions
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -251,7 +249,7 @@ function Chatbot() {
                     type="button"
                     onClick={() => sendMessage(question)}
                     disabled={isLoading}
-                    className="rounded-full border border-slate-200 bg-white px-3 py-2 text-left text-xs font-black text-slate-700 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                    className="rounded-full border border-[#cfe4d2] bg-white px-3 py-2 text-left text-xs font-black text-[#547065] hover:border-[#8ef35f] hover:bg-[#e5f7e1] hover:text-[#0b3d25] disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {question}
                   </button>
@@ -268,19 +266,19 @@ function Chatbot() {
                   className={`flex items-end gap-2 ${isUser ? "justify-end" : "justify-start"}`}
                 >
                   {!isUser && (
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-indigo-100 text-indigo-700">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e5f7e1] text-[#167a43]">
                       <Icon name="bot" className="size-4" />
                     </span>
                   )}
                   <div className={`max-w-[78%] ${isUser ? "text-right" : "text-left"}`}>
-                    <p className="mb-1 px-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                    <p className="mb-1 px-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#547065]">
                       {isUser ? "You" : "Assistant"}
                     </p>
                     <p
                       className={`rounded-2xl px-4 py-3 text-sm font-semibold leading-6 shadow-sm ${
                         isUser
-                          ? "rounded-br-md bg-indigo-500 text-white shadow-[0_12px_26px_rgba(99,102,241,0.24)]"
-                          : "rounded-bl-md border border-slate-200 bg-white text-slate-800"
+                          ? "rounded-br-md bg-[#167a43] text-white shadow-[0_12px_26px_rgba(22,122,67,0.24)]"
+                          : "rounded-bl-md border border-[#cfe4d2] bg-white text-[#082015]"
                       }`}
                     >
                       {message.content}
@@ -296,14 +294,14 @@ function Chatbot() {
             })}
             {isLoading && (
               <div className="flex items-end gap-2">
-                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-indigo-100 text-indigo-700">
+                <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#e5f7e1] text-[#167a43]">
                   <Icon name="bot" className="size-4" />
                 </span>
                 <div>
-                  <p className="mb-1 px-1 text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">
+                  <p className="mb-1 px-1 text-[10px] font-black uppercase tracking-[0.12em] text-[#547065]">
                     Assistant is typing
                   </p>
-                  <div className="rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                  <div className="rounded-2xl rounded-bl-md border border-[#cfe4d2] bg-white px-4 py-3 shadow-sm">
                     <span className="chat-typing-dot" />
                     <span className="chat-typing-dot" />
                     <span className="chat-typing-dot" />
@@ -313,18 +311,18 @@ function Chatbot() {
             )}
           </div>
 
-          <form ref={formRef} onSubmit={handleSubmit} className="border-t border-slate-200 bg-white p-3">
+          <form ref={formRef} onSubmit={handleSubmit} className="border-t border-[#cfe4d2] bg-white p-3">
             <div className="flex gap-2">
               <input
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 placeholder="Ask RouteRaksha..."
-                className="min-h-11 min-w-0 flex-1 rounded-full border border-slate-200 px-4 text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100"
+                className="min-h-11 min-w-0 flex-1 rounded-full border border-[#cfe4d2] px-4 text-sm font-semibold text-[#082015] outline-none placeholder:text-[#547065] focus:border-[#167a43] focus:ring-4 focus:ring-[#8ef35f]/25"
               />
               <button
                 type="submit"
                 disabled={isLoading}
-                className="grid size-11 shrink-0 place-items-center rounded-full bg-indigo-500 text-white hover:bg-indigo-600 disabled:cursor-not-allowed disabled:opacity-60"
+                className="grid size-11 shrink-0 place-items-center rounded-full bg-[#167a43] text-white hover:bg-[#0b3d25] disabled:cursor-not-allowed disabled:opacity-60"
                 aria-label="Send message"
               >
                 <Icon name="send" className="size-4" />
@@ -339,7 +337,7 @@ function Chatbot() {
           type="button"
           aria-label="Open RouteRaksha chatbot"
           onClick={() => setIsOpen(true)}
-          className="grid size-14 place-items-center rounded-full bg-slate-950 text-indigo-300 shadow-[0_18px_42px_rgba(15,23,42,0.28)] hover:bg-indigo-600 hover:text-white"
+          className="grid size-14 place-items-center rounded-full bg-[#082015] text-[#8ef35f] shadow-[0_18px_42px_rgba(8,32,21,0.28)] hover:bg-[#167a43] hover:text-white"
         >
           <Icon name="bot" className="size-6" />
         </button>

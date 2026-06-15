@@ -10,7 +10,7 @@ async function requireAuth(req, res, next) {
     return res.status(401).json({ ok: false, message: "Login required." });
   }
 
-  const user = await User.findById(payload.id).select("name email role");
+  const user = await User.findById(payload.id).select("name email role provider photoURL passwordHash");
 
   if (!user) {
     return res.status(401).json({ ok: false, message: "User not found." });

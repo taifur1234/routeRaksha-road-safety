@@ -18,10 +18,11 @@ function normalizeTypes(value) {
 }
 
 async function findNearbyEmergencyServices(req, res) {
-  const routePoints = normalizeRoutePoints(req.body.routePoints || []);
+  const body = req.body || {};
+  const routePoints = normalizeRoutePoints(body.routePoints || []);
   const requestedCenter = {
-    lat: toFiniteNumber(req.body.lat),
-    lng: toFiniteNumber(req.body.lng),
+    lat: toFiniteNumber(body.lat),
+    lng: toFiniteNumber(body.lng),
   };
   const center = isValidCoordinate(requestedCenter.lat, requestedCenter.lng)
     ? requestedCenter
@@ -31,8 +32,8 @@ async function findNearbyEmergencyServices(req, res) {
     return res.status(400).json({ ok: false, message: "A valid center or route is required." });
   }
 
-  const radiusMeters = toFiniteNumber(req.body.radiusMeters, process.env.EMERGENCY_DEFAULT_RADIUS_METERS || 5000);
-  const types = normalizeTypes(req.body.types);
+  const radiusMeters = toFiniteNumber(body.radiusMeters, process.env.EMERGENCY_DEFAULT_RADIUS_METERS || 5000);
+  const types = normalizeTypes(body.types);
 
   try {
     const services = await fetchEmergencyServices({ center, radiusMeters, types, routePoints });

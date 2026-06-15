@@ -59,6 +59,27 @@ function writeSession(user, remember = true) {
   sessionStorage.setItem(`${SESSION_KEY}Temp`, JSON.stringify(user));
 }
 
+function updateStoredSession(user) {
+  const existingLocal = readJson(SESSION_KEY, null);
+  const existingTemp = readSessionJson(`${SESSION_KEY}Temp`, null);
+  const nextUser = {
+    ...(existingLocal || existingTemp || {}),
+    ...user,
+  };
+
+  if (existingLocal) {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(nextUser));
+    return nextUser;
+  }
+
+  if (existingTemp) {
+    sessionStorage.setItem(`${SESSION_KEY}Temp`, JSON.stringify(nextUser));
+    return nextUser;
+  }
+
+  return nextUser;
+}
+
 function AuthProvider({ children }) {
   const [user, setUser] = useState(() => readSession());
 
@@ -73,6 +94,30 @@ function AuthProvider({ children }) {
 
       if (!response.ok) {
         return { ok: false, message: data.message || "Authentication failed." };
+      }
+
+      return data;
+    } catch {
+      return { ok: false, message: "Server is not reachable. Please try again." };
+    }
+  }, []);
+
+  const requestAccount = useCallback(async function requestAccount(path, options = {}) {
+    const session = readSession();
+
+    try {
+      const response = await fetch(`${API_URL}/api/auth/${path}`, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.token || ""}`,
+          ...(options.headers || {}),
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        return { ok: false, message: data.message || "Account request failed." };
       }
 
       return data;
@@ -196,6 +241,35 @@ function AuthProvider({ children }) {
     setUser(null);
   }, []);
 
+  const refreshProfile = useCallback(async function refreshProfile() {
+    const result = await requestAccount("profile");
+
+    if (!result.ok) {
+      return result;
+    }
+
+    const nextUser = updateStoredSession(result.user);
+    setUser(nextUser);
+
+    return { ok: true, user: nextUser };
+  }, [requestAccount]);
+
+  const updateProfile = useCallback(async function updateProfile({ name, photoURL }) {
+    const result = await requestAccount("profile", {
+      method: "PATCH",
+      body: JSON.stringify({ name, photoURL }),
+    });
+
+    if (!result.ok) {
+      return result;
+    }
+
+    const nextUser = updateStoredSession(result.user);
+    setUser(nextUser);
+
+    return { ok: true, user: nextUser };
+  }, [requestAccount]);
+
   const value = useMemo(
     () => ({
       user,
@@ -204,8 +278,10 @@ function AuthProvider({ children }) {
       login,
       loginWithGoogle,
       logout,
+      refreshProfile,
+      updateProfile,
     }),
-    [login, loginWithGoogle, logout, signup, user],
+    [login, loginWithGoogle, logout, refreshProfile, signup, updateProfile, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

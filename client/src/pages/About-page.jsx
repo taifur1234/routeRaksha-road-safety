@@ -75,12 +75,12 @@ function AboutPage() {
 
           <div className="relative">
             <img
-              src="/images/highway-safety-overlay.jpg"
-              alt="Highway route for road safety planning"
+              src="/images/about-blackspot-road.png"
+              alt="Black spot warning road safety illustration"
               className="h-[18rem] w-full rounded-2xl object-cover shadow-[0_24px_60px_rgba(15,23,42,0.16)] sm:h-[24rem]"
               loading="eager"
             />
-            <div className="absolute -bottom-5 left-5 grid w-[calc(100%-2.5rem)] grid-cols-3 overflow-hidden rounded-2xl border border-white/70 bg-white/92 shadow-[0_20px_45px_rgba(15,23,42,0.14)] backdrop-blur">
+            <div className="absolute -bottom-5 left-5 grid w-[calc(100%-2.5rem)] grid-cols-3 overflow-hidden rounded-2xl border border-white/70 bg-white/90 shadow-[0_20px_45px_rgba(15,23,42,0.14)] backdrop-blur">
               <div className="p-4 text-center">
                 <p className="text-xl font-black text-slate-950">AI</p>
                 <p className="mt-1 text-xs font-bold text-slate-500">Risk layer</p>

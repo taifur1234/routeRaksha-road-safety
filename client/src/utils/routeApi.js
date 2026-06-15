@@ -121,10 +121,12 @@ async function clearRouteHistory() {
 }
 
 async function findEmergencyServices(payload) {
+  const safePayload = payload || {};
+  const routePoints = Array.isArray(safePayload.routePoints) ? safePayload.routePoints : [];
   const cacheKey = JSON.stringify({
-    types: payload.types,
-    radiusMeters: payload.radiusMeters,
-    routePoints: (payload.routePoints || []).filter((_, index) => index % 12 === 0),
+    types: safePayload.types || [],
+    radiusMeters: safePayload.radiusMeters || 5000,
+    routePoints: routePoints.filter((_, index) => index % 12 === 0),
   });
   const cached = emergencyCache.get(cacheKey);
 
@@ -134,7 +136,7 @@ async function findEmergencyServices(payload) {
 
   const data = await requestApi("/api/emergency-services/nearby", {
     method: "POST",
-    body: JSON.stringify(payload),
+    body: JSON.stringify(safePayload),
   });
 
   emergencyCache.set(cacheKey, { data, createdAt: Date.now() });

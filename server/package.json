@@ -11,6 +11,7 @@
     "firebase": "^12.13.0",
     "mongoose": "^9.6.2",
     "nodemon": "^3.1.14",
-    "react-router-dom": "^7.15.1"
+    "react-router-dom": "^7.15.1",
+    "socket.io": "^4.8.3"
   }
 }

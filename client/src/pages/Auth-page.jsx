@@ -173,8 +173,14 @@ function AuthPage({ mode }) {
         <Icon name="close" className="size-5" />
       </Link>
 
-      <section className="grid h-full overflow-hidden lg:grid-cols-[0.49fr_1fr]">
-        <aside className="auth-side relative hidden h-full overflow-hidden bg-[#103000] px-10 py-9 text-[#a5f278] lg:flex lg:flex-col lg:justify-between">
+      <section className="grid h-full overflow-hidden lg:grid-cols-[0.54fr_1fr]">
+        <aside className="auth-side rr-road-band relative hidden h-full overflow-hidden px-10 py-9 text-[#a5f278] lg:flex lg:flex-col lg:justify-between">
+          <img
+            src="/images/highway-safety-overlay.jpg"
+            alt=""
+            className="absolute inset-0 h-full w-full object-cover opacity-25 mix-blend-screen"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#101820]/92 via-[#12382f]/86 to-[#101820]/78" />
           <Link to="/" className="relative z-10 flex w-fit items-center gap-2 text-xl font-black tracking-tight">
             <span className="grid size-9 place-items-center rounded-xl bg-[#9cec6d] text-[#103000]">
               <Icon name="shield" className="size-5" strokeWidth={2.4} />
@@ -183,26 +189,22 @@ function AuthPage({ mode }) {
           </Link>
 
           <div className="relative z-10 max-w-md pb-4">
-            <p className="mb-4 text-xs font-black uppercase tracking-[0.28em] text-white/70">
-              Black spot AI
+            <p className="mb-4 inline-flex rounded-full border border-white/12 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[0.2em] text-[#c6f7dd] backdrop-blur">
+              Road safety intelligence
             </p>
-            <h1 className="max-w-sm text-5xl font-black uppercase leading-[0.92] tracking-tight xl:text-6xl">
-              Safer roads start here
+            <h1 className="max-w-sm text-4xl font-black leading-tight tracking-tight text-white xl:text-5xl">
+              Safer route decisions start here.
             </h1>
             <p className="mt-4 max-w-sm text-base font-semibold leading-7 text-white/80 xl:text-lg xl:leading-8">
-              Plan smarter routes, avoid accident-prone stretches, and report risky spots
-              before they become someone else's problem.
+              Plan routes, avoid risky stretches, and report blackspots with one focused account.
             </p>
-            <p className="auth-height-optional mt-6 text-sm font-black text-white">
-              Built for cautious riders.{" "}
-              <span className="border-b-2 border-[#9cec6d] text-[#a5f278]">
-                Powered by local reports
-              </span>
+            <p className="auth-height-optional mt-6 max-w-sm rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm font-bold leading-6 text-white/78 backdrop-blur">
+              Built for cautious riders and local contributors.
             </p>
           </div>
         </aside>
 
-        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#fbfcfa] px-4 py-4 sm:px-6 lg:px-12 lg:py-5">
+        <div className="flex h-full min-h-0 flex-col overflow-hidden bg-[#f5fbf3] px-4 py-4 sm:px-6 lg:px-12 lg:py-5">
           <div className="mx-auto flex min-h-0 w-full max-w-[36rem] flex-1 flex-col justify-center py-1 sm:py-2">
             <Link
               to="/"
@@ -214,7 +216,10 @@ function AuthPage({ mode }) {
               RouteRaksha
             </Link>
 
-            <form onSubmit={handleSubmit} className="auth-form mx-auto w-full max-w-[29rem]">
+            <form
+              onSubmit={handleSubmit}
+              className="auth-form mx-auto w-full max-w-[30rem] rounded-[1.4rem] border border-[#cfe4d2] bg-white/95 p-5 shadow-[0_28px_80px_rgba(8,32,21,0.12)] backdrop-blur sm:p-7"
+            >
               <div className="text-center">
                 <h2 className="auth-heading text-2xl font-black tracking-tight text-black sm:text-3xl lg:text-4xl">
                   {isSignup ? "Create account." : "Welcome back."}
@@ -290,7 +295,7 @@ function AuthPage({ mode }) {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="mt-4 flex min-h-12 w-full items-center justify-center rounded-full bg-[#9cec6d] px-5 text-base font-black text-[#102f00] shadow-[0_16px_30px_rgba(45,92,16,0.16)] hover:bg-[#8be85b] sm:mt-5 sm:min-h-[3.25rem] lg:mt-6 lg:min-h-14 lg:text-lg"
+                className="auth-primary-button mt-4 flex min-h-12 w-full items-center justify-center rounded-full bg-[#9cec6d] px-5 text-base font-black text-[#102f00] shadow-[0_16px_30px_rgba(45,92,16,0.16)] sm:mt-5 sm:min-h-[3.25rem] lg:mt-6 lg:min-h-14 lg:text-lg"
               >
                 {isSubmitting ? "Please wait..." : isSignup ? "Create account" : "Log in"}
               </button>
@@ -317,7 +322,7 @@ function AuthPage({ mode }) {
                   type="button"
                   onClick={handleGoogleLogin}
                   disabled={isGoogleLoading}
-                  className="flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-neutral-200 bg-white px-5 text-sm font-black text-neutral-800 shadow-sm hover:border-[#9cec6d] hover:bg-[#f8fff2] sm:min-h-[3.25rem] sm:text-base"
+                  className="auth-google-button flex min-h-12 w-full items-center justify-center gap-3 rounded-full border border-neutral-200 bg-white px-5 text-sm font-black text-neutral-800 shadow-sm sm:min-h-[3.25rem] sm:text-base"
                   aria-label="Continue with Google"
                 >
                   <Icon name="google" className="size-6" strokeWidth={0} />

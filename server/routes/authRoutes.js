@@ -1,5 +1,6 @@
 import express from "express";
-import { googleLogin, login, signup } from "../controllers/authController.js";
+import { getProfile, googleLogin, login, signup, updateProfile } from "../controllers/authController.js";
+import { requireAuth } from "../middleware/auth.js";
 import { createRateLimiter } from "../middleware/rateLimit.js";
 
 const router = express.Router();
@@ -12,5 +13,7 @@ const authLimiter = createRateLimiter({
 router.post("/signup", authLimiter, signup);
 router.post("/login", authLimiter, login);
 router.post("/google", authLimiter, googleLogin);
+router.get("/profile", requireAuth, getProfile);
+router.patch("/profile", requireAuth, updateProfile);
 
 export default router;

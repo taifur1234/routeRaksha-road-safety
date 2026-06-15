@@ -3,21 +3,12 @@ import HomeIcon from "./HomeIcon";
 
 const footerLinks = [
   {
-    title: "Our Product",
+    title: "Product",
     links: [
-      { label: "Route planning", to: "/plan-route" },
-      { label: "Blackspot alerts", to: "/plan-route" },
-      { label: "Community reports", to: "/report-accident" },
-      { label: "Admin review", to: "/admin" },
-    ],
-  },
-  {
-    title: "Use Cases",
-    links: [
-      { label: "Daily commute", to: "/plan-route" },
-      { label: "School routes", to: "/plan-route" },
-      { label: "Night travel", to: "/plan-route" },
-      { label: "Local reporting", to: "/report-accident" },
+      { label: "Plan route", to: "/plan-route" },
+      { label: "Report accident", to: "/report-accident" },
+      { label: "Risk history", to: "/report-history" },
+      { label: "Notifications", to: "/notifications" },
     ],
   },
   {
@@ -25,26 +16,19 @@ const footerLinks = [
     links: [
       { label: "About", to: "/about" },
       { label: "Contact", to: "/contact" },
-      { label: "Safety mission", to: "/about" },
-      { label: "Road data", to: "/about" },
+      { label: "Leaderboard", to: "/leaderboard" },
+      { label: "Admin panel", to: "/admin" },
     ],
   },
   {
-    title: "Resources",
+    title: "Actions",
     links: [
-      { label: "Report accident", to: "/report-accident" },
-      { label: "Plan route", to: "/plan-route" },
-      { label: "Account login", to: "/login" },
-      { label: "Help", to: "/contact" },
+      { label: "Create account", to: "/signup" },
+      { label: "Login", to: "/login" },
+      { label: "Profile", to: "/profile" },
+      { label: "Get help", to: "/contact" },
     ],
   },
-];
-
-const socialLinks = [
-  { label: "Instagram", href: "https://www.instagram.com", icon: "instagram" },
-  { label: "LinkedIn", href: "https://www.linkedin.com", icon: "linkedin" },
-  { label: "GitHub", href: "https://github.com", icon: "github" },
-  { label: "Twitter", href: "https://twitter.com", icon: "twitter" },
 ];
 
 function SocialIcon({ name }) {
@@ -57,16 +41,6 @@ function SocialIcon({ name }) {
     strokeLinecap: "round",
     strokeLinejoin: "round",
   };
-
-  if (name === "instagram") {
-    return (
-      <svg aria-hidden="true" {...shared}>
-        <rect x="3" y="3" width="18" height="18" rx="5" />
-        <circle cx="12" cy="12" r="4" />
-        <path d="M17.5 6.5h.01" />
-      </svg>
-    );
-  }
 
   if (name === "linkedin") {
     return (
@@ -87,61 +61,61 @@ function SocialIcon({ name }) {
     );
   }
 
-  if (name === "twitter") {
-    return (
-      <svg aria-hidden="true" className="size-4" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M21.54 7.1c.02.21.02.42.02.63 0 6.43-4.9 13.85-13.85 13.85A13.75 13.75 0 0 1 .25 19.4c.38.04.75.06 1.15.06a9.74 9.74 0 0 0 6.04-2.08 4.87 4.87 0 0 1-4.55-3.38c.3.04.6.08.92.08.44 0 .88-.06 1.29-.17A4.86 4.86 0 0 1 1.2 9.14v-.06c.65.36 1.4.59 2.2.62a4.86 4.86 0 0 1-2.16-4.05c0-.9.24-1.73.66-2.45a13.82 13.82 0 0 0 10.02 5.08 5.48 5.48 0 0 1-.12-1.11 4.86 4.86 0 0 1 8.41-3.33 9.55 9.55 0 0 0 3.08-1.17 4.85 4.85 0 0 1-2.14 2.68 9.76 9.76 0 0 0 2.8-.75 10.45 10.45 0 0 1-2.41 2.5z" />
-      </svg>
-    );
-  }
-
   return (
     <svg aria-hidden="true" {...shared}>
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 8v4l2.5 2.5" />
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <path d="M17.5 6.5h.01" />
     </svg>
   );
 }
 
 function Footer() {
   return (
-    <footer className="border-t border-[#d8e5d3] bg-[#f1f6f0] px-4 py-12 text-[#173a0b] shadow-[inset_0_1px_0_rgba(255,255,255,0.85)] sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-9 lg:grid-cols-[1fr_3fr]">
+    <footer className="border-t border-slate-200 bg-white px-4 py-12 text-slate-950 sm:px-6 lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.15fr_2fr]">
         <div>
-          <Link
-            to="/"
-            className="group flex w-fit items-center gap-3 text-[#173a0b]"
-          >
-            <span className="grid size-10 place-items-center rounded-lg bg-indigo-500 text-white shadow-sm transition duration-200 group-hover:-translate-y-0.5 group-hover:bg-[#173a0b] group-hover:shadow-lg">
+          <Link to="/" className="group flex w-fit items-center gap-3">
+            <span className="grid size-11 place-items-center rounded-xl bg-slate-950 text-cyan-200 shadow-[0_12px_28px_rgba(7,17,31,0.16)] transition group-hover:-translate-y-0.5">
               <HomeIcon name="shield" className="size-5" strokeWidth={2.4} />
             </span>
-            <span className="font-black leading-tight transition group-hover:text-[#102f00]">
-              RouteRaksha
-              <span className="block text-xs uppercase tracking-[0.18em] text-[#46623d]">
-                Safer road alerts
+            <span>
+              <span className="block text-lg font-black tracking-tight">RouteRaksha</span>
+              <span className="block text-xs font-black uppercase tracking-[0.18em] text-slate-500">
+                Road safety intelligence
               </span>
             </span>
           </Link>
-          <div className="mt-5 flex items-center gap-2">
-            {socialLinks.map((social) => (
+
+          <p className="mt-5 max-w-md text-sm font-semibold leading-7 text-slate-600">
+            A blackspot-aware route platform for safer commutes, verified reporting, and
+            calmer road decisions.
+          </p>
+
+          <div className="mt-6 flex items-center gap-2">
+            {[
+              ["Instagram", "instagram", "https://www.instagram.com"],
+              ["LinkedIn", "linkedin", "https://www.linkedin.com"],
+              ["GitHub", "github", "https://github.com"],
+            ].map(([label, icon, href]) => (
               <a
-                key={social.label}
-                href={social.href}
+                key={label}
+                href={href}
                 target="_blank"
                 rel="noreferrer"
-                aria-label={social.label}
-                className="grid size-10 place-items-center rounded-lg border border-[#d8e5d3] bg-white text-[#46623d] shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-[#173a0b] hover:bg-[#173a0b] hover:text-white hover:shadow-lg focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#9cec6d]/40"
+                aria-label={label}
+                className="grid size-10 place-items-center rounded-xl border border-slate-200 bg-slate-50 text-slate-600 hover:border-cyan-200 hover:bg-cyan-50 hover:text-cyan-700"
               >
-                <SocialIcon name={social.icon} />
+                <SocialIcon name={icon} />
               </a>
             ))}
           </div>
         </div>
 
-        <div className="grid gap-7 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-7 sm:grid-cols-3">
           {footerLinks.map((group) => (
             <div key={group.title}>
-              <h3 className="text-xs font-black uppercase tracking-[0.18em] text-[#173a0b]">
+              <h3 className="text-xs font-black uppercase tracking-[0.18em] text-slate-950">
                 {group.title}
               </h3>
               <div className="mt-4 grid gap-2">
@@ -149,9 +123,9 @@ function Footer() {
                   <Link
                     key={link.label}
                     to={link.to}
-                    className="group flex w-fit items-center gap-2 text-sm font-semibold text-[#46623d] transition duration-200 hover:translate-x-1 hover:text-[#173a0b] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#9cec6d]/35"
+                    className="group flex w-fit items-center gap-2 text-sm font-bold text-slate-600 hover:text-cyan-700"
                   >
-                    <span className="size-1.5 rounded-full bg-[#9cec6d] opacity-0 transition group-hover:opacity-100" />
+                    <span className="size-1.5 rounded-full bg-cyan-400 opacity-0 transition group-hover:opacity-100" />
                     {link.label}
                   </Link>
                 ))}
@@ -161,22 +135,15 @@ function Footer() {
         </div>
       </div>
 
-      <div className="mx-auto mt-10 flex max-w-7xl flex-col gap-4 border-t border-[#d8e5d3] pt-6 text-sm font-semibold text-[#46623d] sm:flex-row sm:items-center sm:justify-between">
-        <p>Enter the fold. Get safer route updates.</p>
-        <form className="flex w-full max-w-md overflow-hidden rounded-full border border-[#173a0b]/20 bg-white shadow-sm transition duration-200 focus-within:border-[#173a0b] focus-within:shadow-[0_0_0_4px_rgba(156,236,109,0.25)]">
-          <input
-            type="email"
-            aria-label="Email address"
-            placeholder="you@example.com"
-            className="min-h-11 flex-1 bg-transparent px-4 text-sm font-semibold text-[#173a0b] outline-none placeholder:text-[#7f9478]"
-          />
-          <button
-            type="button"
-            className="bg-[#173a0b] px-5 text-sm font-black text-white transition hover:bg-indigo-600 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#9cec6d]/40"
-          >
-            Subscribe
-          </button>
-        </form>
+      <div className="mx-auto mt-10 flex max-w-7xl flex-col gap-4 border-t border-slate-200 pt-6 text-sm font-semibold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+        <p>Built for safer travel decisions.</p>
+        <div className="flex flex-wrap gap-2">
+          {["Khargone pilot", "Community reports", "Safety scoring"].map((item) => (
+            <span key={item} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+              {item}
+            </span>
+          ))}
+        </div>
       </div>
     </footer>
   );

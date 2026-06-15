@@ -2,64 +2,92 @@ import HomeIcon from "./HomeIcon";
 
 const values = [
   {
-    title: "Blackspot heatmap",
-    text: "Risky road sections appear as clear heat zones around the selected route.",
+    title: "Blackspot intelligence",
+    text: "Accident-prone stretches are grouped, scored, and shown directly around the route.",
     icon: "map",
+    stat: "160+ mapped zones",
   },
   {
-    title: "Safety score",
-    text: "Compare routes by risk, not only by time and distance.",
+    title: "Route risk scoring",
+    text: "Every route can be compared by time, distance, severity mix, and safer alternatives.",
     icon: "route",
+    stat: "100-point safety score",
   },
   {
-    title: "Verified reports",
-    text: "Community accident reports enter review before becoming route awareness.",
+    title: "Community verification",
+    text: "Reports stay useful because submissions move through review before shaping public alerts.",
     icon: "file",
+    stat: "review-first data",
   },
   {
-    title: "Drive-ready alerts",
-    text: "Know where to slow down before a risky signal, merge, or turn arrives.",
+    title: "Drive-ready warnings",
+    text: "Short, readable alerts help drivers slow down before a risky signal, turn, or merge.",
     icon: "alert",
+    stat: "early caution window",
   },
 ];
 
 function ValueSection() {
   return (
-    <section className="px-4 py-14 sm:px-6 lg:px-8">
+    <section className="px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
       <div className="mx-auto max-w-7xl">
-        <div className="grid gap-8 lg:grid-cols-[0.74fr_1.26fr]">
-          <div>
-            <p className="text-xs font-black uppercase tracking-[0.22em] text-[#46623d]">
-              Safety signals
-            </p>
-            <h2 className="mt-3 text-4xl font-black leading-tight text-[#173a0b]">
-              A route planner built for caution.
+        <div className="grid gap-9 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
+          <div className="lg:sticky lg:top-28">
+            <p className="rr-kicker text-xs font-black uppercase">Safety OS</p>
+            <h2 className="mt-4 max-w-xl text-4xl font-black leading-tight tracking-tight text-slate-950 sm:text-5xl">
+              A serious product layer for real road decisions.
             </h2>
-            <p className="mt-4 text-sm font-semibold leading-7 text-[#46623d]">
-              The home screen is not just a promise. RouteRaksha gives drivers a practical
-              safety layer they can read quickly before choosing a route.
+            <p className="mt-5 max-w-lg text-base font-semibold leading-8 text-slate-600">
+              RouteRaksha feels like a startup product because it behaves like one: focused
+              information, clear tradeoffs, and workflows built around trust.
             </p>
+
+            <div className="mt-7 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(7,17,31,0.08)]">
+              <div className="grid grid-cols-3 divide-x divide-slate-200">
+                {[
+                  ["Live", "alerts"],
+                  ["AI", "risk layer"],
+                  ["Admin", "review"],
+                ].map(([value, label]) => (
+                  <div key={label} className="p-4 text-center">
+                    <p className="text-xl font-black text-slate-950">{value}</p>
+                    <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                      {label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
             {values.map((item, index) => (
               <article
                 key={item.title}
-                className={`rounded-lg border border-[#d8e5d3] p-5 shadow-[0_12px_30px_rgba(16,47,0,0.06)] ${
-                  index === 1 ? "bg-indigo-500 text-white" : "bg-[#fbfcfa]"
+                className={`rr-card rounded-2xl p-5 transition ${
+                  index === 1 ? "bg-slate-950 text-white" : ""
                 }`}
               >
-                <span
-                  className={`mb-5 grid size-11 place-items-center rounded-lg ${
-                    index === 1 ? "bg-white/15 text-white" : "bg-indigo-500 text-white"
-                  }`}
-                >
-                  <HomeIcon name={item.icon} className="size-5" strokeWidth={2.3} />
-                </span>
-                <h3 className={`text-lg font-black ${index === 1 ? "text-white" : "text-slate-950"}`}>
+                <div className="flex items-start justify-between gap-4">
+                  <span
+                    className={`grid size-12 shrink-0 place-items-center rounded-xl ${
+                      index === 1 ? "bg-cyan-300 text-slate-950" : "bg-slate-950 text-white"
+                    }`}
+                  >
+                    <HomeIcon name={item.icon} className="size-5" strokeWidth={2.35} />
+                  </span>
+                  <span
+                    className={`rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-[0.12em] ${
+                      index === 1 ? "bg-white/10 text-cyan-100" : "bg-cyan-50 text-cyan-700"
+                    }`}
+                  >
+                    {item.stat}
+                  </span>
+                </div>
+                <h3 className={`mt-7 text-xl font-black ${index === 1 ? "text-white" : "text-slate-950"}`}>
                   {item.title}
                 </h3>
-                <p className={`mt-3 text-sm font-semibold leading-7 ${index === 1 ? "text-indigo-100" : "text-slate-600"}`}>
+                <p className={`mt-3 text-sm font-semibold leading-7 ${index === 1 ? "text-slate-300" : "text-slate-600"}`}>
                   {item.text}
                 </p>
               </article>

@@ -17,7 +17,6 @@ import {
   calculateRouteSafety,
   clusterBlackspots,
   distanceInMeters,
-  findNearbyRisks,
   formatMeters,
   getDangerousRouteSegments,
   getRouteBlackspots,
@@ -39,7 +38,6 @@ const MAX_WEAK_GPS_ACCURACY_METERS = 10000;
 const STRONG_GPS_ACCURACY_METERS = 2500;
 const KHARGONE_PILOT_RADIUS_METERS = 85000;
 const LIVE_NAVIGATION_OFF_ROUTE_METERS = 140;
-const LIVE_NAVIGATION_NEARBY_RISK_REFRESH_MS = 12000;
 const INDORE_CENTER = { lat: 22.7196, lng: 75.8577 };
 const KHARGONE_CITY_POINT = { lat: KHARGONE_CENTER[0], lng: KHARGONE_CENTER[1] };
 const CITY_ROUTE_MATCH_RADIUS_METERS = 45000;
@@ -676,8 +674,8 @@ const routeTypeMeta = {
   balanced: {
     label: "Balanced Route",
     badge: "Balanced",
-    className: "border-violet-200 bg-violet-50 text-violet-700",
-    lineColor: "#7c3aed",
+    className: "border-green-200 bg-green-50 text-green-700",
+    lineColor: "#167a43",
   },
 };
 
@@ -692,27 +690,116 @@ function getComparableScore(route, fastestDuration, shortestDistance) {
   return route.safety.safetyScore - timePenalty - distancePenalty;
 }
 
+function getRouteSignature(route) {
+  const points = route.routeLatLngs || [];
+
+  if (!points.length) {
+    return `${Math.round(route.distance || 0)}:${Math.round(route.duration || 0)}`;
+  }
+
+  return points
+    .filter((_, index) => index === 0 || index === points.length - 1 || index % Math.max(1, Math.floor(points.length / 8)) === 0)
+    .map(([lat, lng]) => `${Number(lat).toFixed(3)},${Number(lng).toFixed(3)}`)
+    .join("|");
+}
+
+function dedupeRouteCandidates(candidates) {
+  const seen = new Set();
+
+  return candidates.filter((candidate) => {
+    const signature = getRouteSignature(candidate);
+
+    if (seen.has(signature)) {
+      return false;
+    }
+
+    seen.add(signature);
+    return true;
+  });
+}
+
+function createRiskDetourWaypoint(origin, destination, blackspot, side = 1, distanceMeters = 1800) {
+  const dx = destination.lng - origin.lng;
+  const dy = destination.lat - origin.lat;
+  const length = Math.sqrt(dx * dx + dy * dy) || 1;
+  const perpendicular = {
+    lat: (-dx / length) * side,
+    lng: (dy / length) * side,
+  };
+  const latOffset = (perpendicular.lat * distanceMeters) / 111320;
+  const lngScale = 111320 * Math.cos((blackspot.lat * Math.PI) / 180);
+  const lngOffset = lngScale ? (perpendicular.lng * distanceMeters) / lngScale : 0;
+  const waypoint = {
+    lat: blackspot.lat + latOffset,
+    lng: blackspot.lng + lngOffset,
+    label: `Risk detour near ${blackspot.location}`,
+  };
+
+  if (
+    waypoint.lat < -90 ||
+    waypoint.lat > 90 ||
+    waypoint.lng < -180 ||
+    waypoint.lng > 180 ||
+    distanceInMeters(origin, waypoint) < 900 ||
+    distanceInMeters(destination, waypoint) < 900
+  ) {
+    return null;
+  }
+
+  return waypoint;
+}
+
+function buildRiskDetourWaypointSets(origin, destination, routeBlackspots, mode) {
+  const rankedRisks = routeBlackspots
+    .filter((blackspot) => normalizeSafety(blackspot.severity) !== "low")
+    .slice(0, mode === "safest" ? 2 : 1);
+
+  if (!rankedRisks.length) {
+    return [];
+  }
+
+  const distanceMeters = mode === "safest" ? 3200 : 1700;
+
+  return [-1, 1]
+    .map((side) =>
+      rankedRisks
+        .map((risk) => createRiskDetourWaypoint(origin, destination, risk, side, distanceMeters))
+        .filter(Boolean),
+    )
+    .filter((waypoints) => waypoints.length);
+}
+
 function pickRouteOptions(candidates) {
   if (!candidates.length) {
     return [];
   }
 
-  const fastest = candidates.reduce((best, route) => (route.duration < best.duration ? route : best), candidates[0]);
-  const safest = candidates.reduce((best, route) => {
+  const uniqueCandidates = dedupeRouteCandidates(candidates);
+  const pool = uniqueCandidates.length ? uniqueCandidates : candidates;
+  const fastestPool = pool.filter((route) => route.strategy === "fastest");
+  const safestPool = pool.filter((route) => route.strategy === "safest");
+  const balancedPool = pool.filter((route) => route.strategy === "balanced");
+  const fastest = (fastestPool.length ? fastestPool : pool).reduce(
+    (best, route) => (route.duration < best.duration ? route : best),
+    (fastestPool.length ? fastestPool : pool)[0],
+  );
+  const safestSource = safestPool.length ? safestPool : pool;
+  const safest = safestSource.reduce((best, route) => {
     if (route.safety.safetyScore === best.safety.safetyScore) {
       return route.duration < best.duration ? route : best;
     }
 
     return route.safety.safetyScore > best.safety.safetyScore ? route : best;
-  }, candidates[0]);
+  }, safestSource[0]);
   const fastestDuration = fastest.duration;
-  const shortestDistance = candidates.reduce((best, route) => Math.min(best, route.distance), candidates[0].distance);
-  const balanced = candidates.reduce((best, route) => {
+  const shortestDistance = pool.reduce((best, route) => Math.min(best, route.distance), pool[0].distance);
+  const balancedSource = balancedPool.length ? balancedPool : pool;
+  const balanced = balancedSource.reduce((best, route) => {
     return getComparableScore(route, fastestDuration, shortestDistance) >
       getComparableScore(best, fastestDuration, shortestDistance)
       ? route
       : best;
-  }, candidates[0]);
+  }, balancedSource[0]);
 
   return [
     { ...fastest, routeType: "fastest" },
@@ -901,7 +988,6 @@ function RoutePlanner() {
   const [showHospitals, setShowHospitals] = useState(true);
   const [showPolice, setShowPolice] = useState(true);
   const [emergencyRadius, setEmergencyRadius] = useState(5000);
-  const [nearbyRisks, setNearbyRisks] = useState([]);
   const [isLiveTracking, setIsLiveTracking] = useState(false);
   const [navigationState, setNavigationState] = useState(null);
   const mapElementRef = useRef(null);
@@ -916,7 +1002,6 @@ function RoutePlanner() {
   const liveAccuracyCircleRef = useRef(null);
   const watchPositionIdRef = useRef(null);
   const routeSummaryRef = useRef(null);
-  const nearbyRiskRefreshAtRef = useRef(0);
   const lastLivePositionRef = useRef(null);
 
   const getSearchBiasCenter = useCallback(function getSearchBiasCenter() {
@@ -1124,9 +1209,6 @@ function RoutePlanner() {
             mapRef.current.setView([fallbackOrigin.lat, fallbackOrigin.lng], 14);
           }
 
-          readApprovedAccidentReports()
-            .then((reports) => setNearbyRisks(findNearbyRisks(fallbackOrigin, reports)))
-            .catch(() => setNearbyRisks(findNearbyRisks(fallbackOrigin, [])));
           return;
         }
 
@@ -1139,9 +1221,6 @@ function RoutePlanner() {
           mapRef.current.setView([lat, lng], 15);
         }
 
-        readApprovedAccidentReports()
-          .then((reports) => setNearbyRisks(findNearbyRisks({ lat, lng }, reports)))
-          .catch(() => setNearbyRisks(findNearbyRisks({ lat, lng }, [])));
       },
       () => {
         setLocationStatus("Location permission denied. You can enter location manually.");
@@ -1267,13 +1346,6 @@ function RoutePlanner() {
         animate: true,
         duration: 0.6,
       });
-    }
-
-    if (now - nearbyRiskRefreshAtRef.current > LIVE_NAVIGATION_NEARBY_RISK_REFRESH_MS) {
-      nearbyRiskRefreshAtRef.current = now;
-      readApprovedAccidentReports()
-        .then((reports) => setNearbyRisks(findNearbyRisks(point, reports)))
-        .catch(() => setNearbyRisks(findNearbyRisks(point, [])));
     }
 
     setNavigationState({
@@ -1510,10 +1582,10 @@ function RoutePlanner() {
         selectedDestination?.label === destination ? selectedDestination : geocodeLocation(destination),
       ]);
       const corridorWaypoints = getKhargoneIndoreCorridorWaypoints(origin, destinationPoint);
-      const carRoutes = await fetchRoutes(origin, destinationPoint, "driving", corridorWaypoints, true);
-      const bikeRoute = await fetchBikeRoute(origin, destinationPoint, carRoutes[0], corridorWaypoints);
       const approvedReports = await readApprovedAccidentReports().catch(() => []);
-      const candidates = carRoutes.slice(0, 3).map((route, index) => {
+      const directRoutes = await fetchRoutes(origin, destinationPoint, "driving", corridorWaypoints, true);
+      const bikeRoute = await fetchBikeRoute(origin, destinationPoint, directRoutes[0], corridorWaypoints);
+      const makeCandidate = (route, index, strategy, waypointLabel = "") => {
         const latLngs = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
         const routePoints = latLngs.map(([lat, lng]) => ({ lat, lng }));
         const routeBlackspots = getRouteBlackspots(routePoints, approvedReports);
@@ -1521,10 +1593,11 @@ function RoutePlanner() {
         const dangerousSegments = getDangerousRouteSegments(routePoints, routeBlackspots);
 
         return {
-          id: `route-${index}`,
+          id: `${strategy}-${index}`,
           from: origin.label,
           to: destinationPoint.label,
-          routeMode: corridorWaypoints.length ? "Khargone-Indore highway corridor" : "OSRM route option",
+          strategy,
+          routeMode: waypointLabel || (corridorWaypoints.length ? "Khargone-Indore highway corridor" : "Direct OSRM route"),
           car: {
             distance: formatDistance(route.distance),
             duration: formatDuration(route.duration),
@@ -1547,7 +1620,43 @@ function RoutePlanner() {
           routeAverageSpeed: route.duration > 0 ? route.distance / route.duration : 8,
           blackSpotCount: routeBlackspots.length,
         };
-      });
+      };
+      const directCandidates = directRoutes
+        .slice(0, 3)
+        .map((route, index) => makeCandidate(route, index, "fastest"));
+      const directRiskRoute = directCandidates[0];
+      const detourRequests = [
+        ...buildRiskDetourWaypointSets(origin, destinationPoint, directRiskRoute.blackspots, "balanced").map(
+          (waypoints) => ({
+            strategy: "balanced",
+            waypoints,
+            label: "Risk-aware balanced detour",
+          }),
+        ),
+        ...buildRiskDetourWaypointSets(origin, destinationPoint, directRiskRoute.blackspots, "safest").map(
+          (waypoints) => ({
+            strategy: "safest",
+            waypoints,
+            label: "Risk-aware safest detour",
+          }),
+        ),
+      ];
+      const detourResults = await Promise.all(
+        detourRequests.map((request, index) =>
+          fetchRoutes(
+            origin,
+            destinationPoint,
+            "driving",
+            [...corridorWaypoints, ...request.waypoints].sort(
+              (a, b) => distanceInMeters(origin, a) - distanceInMeters(origin, b),
+            ),
+            false,
+          )
+            .then((routes) => makeCandidate(routes[0], index, request.strategy, request.label))
+            .catch(() => null),
+        ),
+      );
+      const candidates = [...directCandidates, ...detourResults.filter(Boolean)];
       const options = pickRouteOptions(candidates);
       const preferred = options.find((option) => option.routeType === "balanced") || options[0];
 
@@ -1667,7 +1776,7 @@ function RoutePlanner() {
 
     services.forEach((service) => {
       const isHospital = service.type === "hospital";
-      const color = isHospital ? "#0ea5e9" : "#7c3aed";
+      const color = isHospital ? "#167a43" : "#f5c451";
       const icon = L.divIcon({
         className: `emergency-marker emergency-marker--${service.type}`,
         html: `<span style="background:${color}">${isHospital ? "H" : "P"}</span>`,
@@ -1727,16 +1836,6 @@ function RoutePlanner() {
       setEmergencyError(error.message || "Emergency services are unavailable.");
       setEmergencyStatus("");
     }
-  }
-
-  function openInOpenStreetMap() {
-    if (!routeSummary) {
-      return;
-    }
-
-    const { origin, destination: destinationPoint } = routeSummary;
-    const url = `https://www.openstreetmap.org/directions?engine=fossgis_osrm_car&route=${origin.lat}%2C${origin.lng}%3B${destinationPoint.lat}%2C${destinationPoint.lng}`;
-    window.open(url, "_blank", "noopener,noreferrer");
   }
 
   if (!isLoggedIn) {
@@ -1909,14 +2008,6 @@ function RoutePlanner() {
             </div>
           </form>
 
-          {isRouteLoading && (
-            <div className="mt-5 grid gap-3">
-              {[0, 1, 2].map((item) => (
-                <div key={item} className="h-32 animate-pulse rounded-lg border border-[#d8e5d3] bg-[#f1f6f0]" />
-              ))}
-            </div>
-          )}
-
           {!isRouteLoading && routeOptions.length > 0 && (
             <div className="mt-5">
               <div className="flex items-center justify-between gap-3">
@@ -1943,6 +2034,7 @@ function RoutePlanner() {
                             {meta.badge}
                           </span>
                           <h3 className="mt-2 text-base font-black text-[#173a0b]">{meta.label}</h3>
+                          <p className="mt-1 text-xs font-bold text-[#46623d]">{option.routeMode}</p>
                         </div>
                         <button
                           type="button"
@@ -2147,14 +2239,6 @@ function RoutePlanner() {
                   </p>
                 )}
               </div>
-
-              <button
-                type="button"
-                onClick={openInOpenStreetMap}
-                className="mt-4 flex min-h-11 w-full items-center justify-center rounded-full border border-[#173a0b] bg-white px-5 text-sm font-black text-[#173a0b] transition hover:bg-[#f1f6f0]"
-              >
-                Open in OpenStreetMap
-              </button>
 
               <div className="mt-4 rounded-lg border border-[#d8e5d3] bg-white p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -2414,37 +2498,6 @@ function RoutePlanner() {
             )}
           </div>
 
-          <div className="mt-5 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] p-4">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-black text-[#173a0b]">Dangerous Areas Near You</p>
-              <button
-                type="button"
-                onClick={useCurrentLocation}
-                className="rounded-full border border-[#d8e5d3] bg-white px-3 py-1.5 text-xs font-black text-[#46623d]"
-              >
-                Refresh
-              </button>
-            </div>
-            {nearbyRisks.length ? (
-              <div className="mt-3 grid gap-2">
-                {nearbyRisks.map((risk) => (
-                  <div key={risk.id} className="flex items-start justify-between gap-3 rounded-lg bg-white p-3">
-                    <div>
-                      <p className="text-sm font-black text-[#173a0b]">{risk.location}</p>
-                      <p className="mt-1 text-xs font-bold text-[#46623d]">{getSeverityMeta(risk.severity).label}</p>
-                    </div>
-                    <span className="shrink-0 rounded-full bg-[#f1f6f0] px-3 py-1 text-xs font-black text-[#46623d]">
-                      {formatMeters(risk.distanceFromUser)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-3 text-sm font-semibold leading-6 text-[#46623d]">
-                Use GPS to sort Madhya Pradesh blackspots by distance from your location.
-              </p>
-            )}
-          </div>
         </aside>
 
         <section className="rounded-lg border border-[#d8e5d3] bg-white p-4 shadow-[0_22px_55px_rgba(16,47,0,0.1)]">

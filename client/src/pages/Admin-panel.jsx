@@ -7,12 +7,21 @@ import {
   updateAccidentReport,
   updateAccidentReportStatus,
 } from "../utils/reportStore";
+import {
+  deleteContactMessage as deleteContactMessageApi,
+  listContactMessages,
+  markContactMessageSeen,
+} from "../utils/contactMessageApi";
+import { broadcastNotification } from "../utils/notificationApi";
+import { getLeaderboard, grantReputationBonus } from "../utils/reputationApi";
 import { getVerificationMeta } from "../utils/safetyData";
 
 const navItems = [
   { id: "overview", label: "Overview", icon: "dashboard" },
   { id: "review", label: "Review queue", icon: "clipboard" },
   { id: "blackspots", label: "Blackspots", icon: "map" },
+  { id: "messages", label: "Contact messages", icon: "mail" },
+  { id: "community", label: "Community", icon: "user" },
 ];
 
 const metricCopy = {
@@ -65,6 +74,10 @@ function Icon({ name, size = 18 }) {
       "M15 6v15",
     ],
     signal: ["M5 20v-5", "M12 20V8", "M19 20V4"],
+    home: ["M3 10.5 12 3l9 7.5", "M5 10v10h14V10", "M9 20v-6h6v6"],
+    mail: ["M4 5h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z", "m22 7-10 6L2 7"],
+    eye: ["M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z", "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"],
+    trash: ["M3 6h18", "M8 6V4h8v2", "M19 6l-1 14H6L5 6", "M10 11v5", "M14 11v5"],
     clock: ["M12 7v5l3 2", "M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"],
     shield: ["M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z", "M9 12l2 2 4-5"],
     alert: [
@@ -190,7 +203,7 @@ const BAR_FILLS = {
   Medium: { fill: "url(#barMedium)", stop1: "#fbbf24", stop2: "#f59e0b" },
   Low:    { fill: "url(#barLow)",    stop1: "#4ade80", stop2: "#22c55e" },
 };
-const DEFAULT_BAR = { fill: "url(#barDefault)", stop1: "#818cf8", stop2: "#6366f1" };
+const DEFAULT_BAR = { fill: "url(#barDefault)", stop1: "#8ef35f", stop2: "#167a43" };
 
 function BarChart({ title, helper, data }) {
   const [hovered, setHovered] = useState(null);
@@ -227,7 +240,7 @@ function BarChart({ title, helper, data }) {
             );
           })}
           <linearGradient id="barDefault" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#818cf8" /><stop offset="100%" stopColor="#6366f1" />
+            <stop offset="0%" stopColor="#8ef35f" /><stop offset="100%" stopColor="#167a43" />
           </linearGradient>
         </defs>
 
@@ -544,7 +557,7 @@ function OrganicMap({ reports }) {
 
       <div className="relative z-10 h-40">
         {(approved.length ? approved : reports.slice(0, 4)).map((report, index) => {
-          const color = sevColor[normalize(report.severity)] || "#6366f1";
+          const color = sevColor[normalize(report.severity)] || "#167a43";
           return (
             <div
               key={report.id}
@@ -813,6 +826,15 @@ function AdminPanel() {
   const [severityFilter, setSeverityFilter] = useState("all");
   const [notice, setNotice] = useState("");
   const [isLoadingReports, setIsLoadingReports] = useState(false);
+  const [contributors, setContributors] = useState([]);
+  const [contactMessages, setContactMessages] = useState([]);
+  const [contactPagination, setContactPagination] = useState(null);
+  const [contactUnseenCount, setContactUnseenCount] = useState(0);
+  const [contactSearch, setContactSearch] = useState("");
+  const [contactSeenFilter, setContactSeenFilter] = useState("all");
+  const [isLoadingContacts, setIsLoadingContacts] = useState(false);
+  const [broadcastDraft, setBroadcastDraft] = useState({ title: "", message: "", mode: "all", userIds: "" });
+  const [bonusDraft, setBonusDraft] = useState({ userId: "", reason: "" });
   const isAdmin = user?.role === "admin";
 
   const summary = useMemo(() => {
@@ -911,7 +933,7 @@ function AdminPanel() {
   const verificationSignalData = useMemo(() => {
     const groups = [
       { key: "government_verified", label: "Government Verified", color: "#10b981" },
-      { key: "community_verified", label: "Community Verified", color: "#6366f1" },
+      { key: "community_verified", label: "Community Verified", color: "#167a43" },
       { key: "under_review", label: "Under Review", color: "#f59e0b" },
     ];
 
@@ -961,11 +983,51 @@ function AdminPanel() {
     }
   }, [flash]);
 
+  const loadContactMessages = useCallback(async function loadContactMessages({ silent = false } = {}) {
+    setIsLoadingContacts(true);
+
+    try {
+      const data = await listContactMessages({
+        search: contactSearch,
+        seen: contactSeenFilter === "all" ? "" : contactSeenFilter,
+      });
+      setContactMessages(data.messages || []);
+      setContactPagination(data.pagination || null);
+      setContactUnseenCount(data.unseenCount || 0);
+
+      if (!silent) {
+        flash("Contact messages loaded.");
+      }
+    } catch (error) {
+      flash(error.message || "Could not load contact messages.");
+    } finally {
+      setIsLoadingContacts(false);
+    }
+  }, [contactSearch, contactSeenFilter, flash]);
+
   useEffect(() => {
     if (isLoggedIn && isAdmin) {
       loadReports({ silent: true });
     }
   }, [isLoggedIn, isAdmin, loadReports]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !isAdmin || activeView !== "community") {
+      return;
+    }
+
+    getLeaderboard({ limit: 20 })
+      .then((data) => setContributors(data.users || []))
+      .catch((error) => flash(error.message || "Could not load contributors."));
+  }, [activeView, flash, isAdmin, isLoggedIn]);
+
+  useEffect(() => {
+    if (!isLoggedIn || !isAdmin || activeView !== "messages") {
+      return;
+    }
+
+    loadContactMessages({ silent: true });
+  }, [activeView, isAdmin, isLoggedIn, loadContactMessages]);
 
   async function handleReview(id, status) {
     try {
@@ -998,6 +1060,68 @@ function AdminPanel() {
       flash("Report deleted from review data.");
     } catch (error) {
       flash(error.message || "Could not delete report.");
+    }
+  }
+
+  async function handleMarkContactSeen(id) {
+    try {
+      const updatedMessage = await markContactMessageSeen(id);
+      setContactMessages((currentMessages) =>
+        currentMessages.map((message) => (message.id === id ? updatedMessage : message)),
+      );
+      setContactUnseenCount((count) => Math.max(0, count - 1));
+      flash("Message marked as seen.");
+    } catch (error) {
+      flash(error.message || "Could not mark message as seen.");
+    }
+  }
+
+  async function handleDeleteContactMessage(id) {
+    try {
+      const deletedMessage = await deleteContactMessageApi(id);
+      setContactMessages((currentMessages) => currentMessages.filter((message) => message.id !== id));
+      if (!deletedMessage.isSeen) {
+        setContactUnseenCount((count) => Math.max(0, count - 1));
+      }
+      flash("Contact message deleted.");
+    } catch (error) {
+      flash(error.message || "Could not delete contact message.");
+    }
+  }
+
+  async function handleBroadcast(event) {
+    event.preventDefault();
+
+    try {
+      const userIds = broadcastDraft.userIds
+        .split(",")
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const result = await broadcastNotification({
+        mode: broadcastDraft.mode,
+        userIds,
+        title: broadcastDraft.title,
+        message: broadcastDraft.message,
+      });
+
+      setBroadcastDraft({ title: "", message: "", mode: "all", userIds: "" });
+      flash(`Notification sent to ${result.createdCount || 0} user(s).`);
+    } catch (error) {
+      flash(error.message || "Could not send broadcast.");
+    }
+  }
+
+  async function handleBonus(event) {
+    event.preventDefault();
+
+    try {
+      await grantReputationBonus(bonusDraft.userId, bonusDraft.reason);
+      setBonusDraft({ userId: "", reason: "" });
+      const data = await getLeaderboard({ limit: 20 });
+      setContributors(data.users || []);
+      flash("Reputation bonus awarded.");
+    } catch (error) {
+      flash(error.message || "Could not award bonus.");
     }
   }
 
@@ -1050,7 +1174,7 @@ function AdminPanel() {
                     className={`flex shrink-0 items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm font-bold transition-all ${
                       active
                         ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/20"
-                        : "text-slate-400 hover:bg-white/8 hover:text-white"
+                        : "text-slate-400 hover:bg-white/10 hover:text-white"
                     }`}
                   >
                     <Icon name={item.icon} size={16} />
@@ -1105,11 +1229,18 @@ function AdminPanel() {
           <header className="mb-7 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
             <div>
               <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Safety operations</p>
-              <h1 className="mt-1 text-2xl font-extrabold tracking-tight text-slate-800 sm:text-3xl">
-                Accident Report Command Center
+              <h1 className="mt-1 text-xl font-extrabold tracking-tight text-slate-800 sm:text-2xl">
+                Admin Center
               </h1>
             </div>
             <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+              <Link
+                to="/"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-700 shadow-sm hover:bg-slate-100"
+              >
+                <Icon name="home" size={14} />
+                Home
+              </Link>
               <select
                 value={statusFilter}
                 onChange={(event) => setStatusFilter(event.target.value)}
@@ -1362,6 +1493,226 @@ function AdminPanel() {
                     copy="Khargone-Indore source signals are live. Approved user reports will appear here for editing."
                   />
               )}
+            </section>
+          )}
+
+          {activeView === "messages" && (
+            <section className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-3">
+                <article className="rounded-2xl border border-indigo-100 bg-indigo-50 p-5">
+                  <p className="text-xs font-bold uppercase tracking-widest text-indigo-500">Inbox</p>
+                  <p className="mt-2 text-3xl font-extrabold text-indigo-700">{contactPagination?.total || contactMessages.length}</p>
+                  <p className="mt-1 text-xs font-semibold text-indigo-700/70">Messages in current filter</p>
+                </article>
+                <article className="rounded-2xl border border-amber-100 bg-amber-50 p-5">
+                  <p className="text-xs font-bold uppercase tracking-widest text-amber-500">Unseen</p>
+                  <p className="mt-2 text-3xl font-extrabold text-amber-700">{contactUnseenCount}</p>
+                  <p className="mt-1 text-xs font-semibold text-amber-700/70">Needs admin review</p>
+                </article>
+                <article className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5">
+                  <p className="text-xs font-bold uppercase tracking-widest text-emerald-500">Status</p>
+                  <p className="mt-2 text-3xl font-extrabold text-emerald-700">
+                    {contactUnseenCount ? "Open" : "Clear"}
+                  </p>
+                  <p className="mt-1 text-xs font-semibold text-emerald-700/70">Contact desk health</p>
+                </article>
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm">
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Contact inbox</p>
+                    <h2 className="mt-1 text-2xl font-extrabold text-slate-800">User messages</h2>
+                    <p className="mt-1 text-sm font-medium text-slate-500">
+                      Messages sent from Contact Us are stored in database and shown here for admin review.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <select
+                      value={contactSeenFilter}
+                      onChange={(event) => setContactSeenFilter(event.target.value)}
+                      className="rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 outline-none focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100"
+                    >
+                      <option value="all">All messages</option>
+                      <option value="false">Unseen only</option>
+                      <option value="true">Seen only</option>
+                    </select>
+                    <div className="relative">
+                      <input
+                        value={contactSearch}
+                        onChange={(event) => setContactSearch(event.target.value)}
+                        placeholder="Search messages..."
+                        className="w-full rounded-full border border-slate-200 bg-white py-2.5 pl-10 pr-4 text-sm font-medium text-slate-700 outline-none placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-100 sm:w-72"
+                      />
+                      <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                        <Icon name="search" size={15} />
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => loadContactMessages()}
+                      disabled={isLoadingContacts}
+                      className="inline-flex items-center justify-center gap-2 rounded-full bg-indigo-600 px-5 py-2.5 text-sm font-bold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-70"
+                    >
+                      <Icon name="refresh" size={14} />
+                      {isLoadingContacts ? "Loading..." : "Refresh"}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {contactMessages.length ? (
+                <div className="grid gap-4">
+                  {contactMessages.map((message) => (
+                    <article
+                      key={message.id}
+                      className={`rounded-2xl border bg-white p-5 shadow-sm ${
+                        message.isSeen ? "border-slate-100" : "border-amber-200 ring-4 ring-amber-50"
+                      }`}
+                    >
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider ${
+                              message.isSeen
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-100"
+                                : "bg-amber-50 text-amber-700 border border-amber-200"
+                            }`}>
+                              {message.isSeen ? "Seen" : "Unseen"}
+                            </span>
+                            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                              {message.topic}
+                            </span>
+                            <span className="text-xs font-bold text-slate-400">{formatDate(message.createdAt)}</span>
+                          </div>
+                          <h3 className="mt-3 text-xl font-extrabold text-slate-800">{message.name}</h3>
+                          <p className="mt-1 text-sm font-bold text-slate-500">{message.email}</p>
+                          {message.userEmail && message.userEmail !== message.email && (
+                            <p className="mt-1 text-xs font-semibold text-slate-400">Signed in as {message.userEmail}</p>
+                          )}
+                          <p className="mt-4 whitespace-pre-wrap rounded-2xl bg-slate-50 p-4 text-sm font-medium leading-7 text-slate-600">
+                            {message.message}
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 flex-col gap-2 sm:flex-row lg:flex-col">
+                          <button
+                            type="button"
+                            onClick={() => handleMarkContactSeen(message.id)}
+                            disabled={message.isSeen}
+                            className="inline-flex items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-bold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            <Icon name="eye" size={14} />
+                            Mark seen
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteContactMessage(message.id)}
+                            className="inline-flex items-center justify-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-100"
+                          >
+                            <Icon name="trash" size={14} />
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title={isLoadingContacts ? "Loading contact messages..." : "No contact messages found."}
+                  copy="New messages from the Contact Us page will appear here for admin review."
+                />
+              )}
+            </section>
+          )}
+
+          {activeView === "community" && (
+            <section className="space-y-6">
+              <div className="grid gap-5 xl:grid-cols-2">
+                <form onSubmit={handleBroadcast} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Admin broadcast</p>
+                  <h2 className="mt-1 text-xl font-extrabold text-slate-800">Send notification</h2>
+                  <div className="mt-5 grid gap-3">
+                    <select
+                      value={broadcastDraft.mode}
+                      onChange={(event) => setBroadcastDraft((draft) => ({ ...draft, mode: event.target.value }))}
+                      className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold"
+                    >
+                      <option value="all">All users</option>
+                      <option value="selected">Selected user IDs</option>
+                    </select>
+                    {broadcastDraft.mode === "selected" && (
+                      <input
+                        value={broadcastDraft.userIds}
+                        onChange={(event) => setBroadcastDraft((draft) => ({ ...draft, userIds: event.target.value }))}
+                        placeholder="Comma-separated user IDs"
+                        className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold"
+                      />
+                    )}
+                    <input
+                      value={broadcastDraft.title}
+                      onChange={(event) => setBroadcastDraft((draft) => ({ ...draft, title: event.target.value }))}
+                      placeholder="Title"
+                      className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold"
+                    />
+                    <textarea
+                      value={broadcastDraft.message}
+                      onChange={(event) => setBroadcastDraft((draft) => ({ ...draft, message: event.target.value }))}
+                      placeholder="Message"
+                      rows={4}
+                      className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold"
+                    />
+                    <button className="rounded-full bg-indigo-600 px-5 py-3 text-sm font-bold text-white">
+                      Send broadcast
+                    </button>
+                  </div>
+                </form>
+
+                <form onSubmit={handleBonus} className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                  <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Reputation control</p>
+                  <h2 className="mt-1 text-xl font-extrabold text-slate-800">Award admin bonus</h2>
+                  <div className="mt-5 grid gap-3">
+                    <select
+                      value={bonusDraft.userId}
+                      onChange={(event) => setBonusDraft((draft) => ({ ...draft, userId: event.target.value }))}
+                      className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold"
+                    >
+                      <option value="">Choose contributor</option>
+                      {contributors.map((contributor) => (
+                        <option key={contributor.userId} value={contributor.userId}>
+                          {contributor.name} - {contributor.reputationPoints} pts
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={bonusDraft.reason}
+                      onChange={(event) => setBonusDraft((draft) => ({ ...draft, reason: event.target.value }))}
+                      placeholder="Reason"
+                      className="rounded-xl border border-slate-200 px-4 py-3 text-sm font-bold"
+                    />
+                    <button className="rounded-full bg-emerald-600 px-5 py-3 text-sm font-bold text-white">
+                      Award +20 points
+                    </button>
+                  </div>
+                </form>
+              </div>
+
+              <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Top contributors</p>
+                <div className="mt-4 grid gap-3">
+                  {contributors.map((contributor) => (
+                    <div key={contributor.userId} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 p-4">
+                      <div>
+                        <p className="font-extrabold text-slate-800">{contributor.name}</p>
+                        <p className="text-xs font-bold text-slate-500">{contributor.trustLevel}</p>
+                      </div>
+                      <span className="rounded-full bg-white px-3 py-1 text-sm font-extrabold text-slate-700">
+                        {contributor.reputationPoints} pts
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </section>
           )}
         </section>

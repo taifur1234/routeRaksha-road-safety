@@ -5,6 +5,9 @@ import {
   isValidImageData,
   isValidTime,
 } from "../utils/validation.js";
+import User from "../models/User.js";
+import { createNotification } from "../services/notificationService.js";
+import { recalculateUserReputation } from "../services/reputationService.js";
 
 const INCIDENT_TYPES = new Set(["Road accident", "Near miss", "Dangerous turn", "Pothole or bad road"]);
 const SEVERITY_OPTIONS = new Set(["High", "Medium", "Low"]);
@@ -168,6 +171,7 @@ async function createReport(req, res) {
     reporterName: req.user.name,
     reporterEmail: req.user.email,
   });
+  recalculateUserReputation(req.user._id, { notify: false }).catch(() => {});
 
   return res.status(201).json({ ok: true, report: normalizeReport(report) });
 }
@@ -186,6 +190,7 @@ async function updateReportStatus(req, res) {
     return res.status(404).json({ ok: false, message: "Report not found." });
   }
 
+  const previousStatus = report.status;
   report.status = status;
   report.reviewedBy = req.user.name || "Admin";
   report.reviewedAt = now;
@@ -201,6 +206,27 @@ async function updateReportStatus(req, res) {
   }
 
   await report.save();
+
+  if (previousStatus !== status) {
+    const reporter = await User.findOne({ email: report.reporterEmail }).select("_id");
+
+    if (reporter) {
+      if (["approved", "declined"].includes(status)) {
+        await createNotification({
+          userId: reporter._id,
+          title: status === "approved" ? "Report approved" : "Report rejected",
+          message:
+            status === "approved"
+              ? "Your accident report has been approved."
+              : "Your report was rejected after review.",
+          type: status === "approved" ? "REPORT_APPROVED" : "REPORT_REJECTED",
+          metadata: { reportId: report._id, location: report.location },
+        });
+      }
+
+      await recalculateUserReputation(reporter._id);
+    }
+  }
 
   return res.json({ ok: true, report: normalizeReport(report) });
 }
