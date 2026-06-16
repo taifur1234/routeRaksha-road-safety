@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Footer from "../components/home/Footer";
 import HomeIcon from "../components/home/HomeIcon";
+import { authFetch } from "../utils/session";
 import { cleanText, isValidEmail } from "../utils/validation";
 
-const SESSION_KEY = "routeRakshaSession";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 function Icon({ name, className = "size-5", strokeWidth = 2 }) {
@@ -111,17 +111,6 @@ function ContactPage() {
     message: "",
   });
 
-  function readSession() {
-    try {
-      return (
-        JSON.parse(localStorage.getItem(SESSION_KEY) || "null") ||
-        JSON.parse(sessionStorage.getItem(`${SESSION_KEY}Temp`) || "null")
-      );
-    } catch {
-      return null;
-    }
-  }
-
   function updateField(field, value) {
     setForm((current) => ({ ...current, [field]: value }));
     setError("");
@@ -170,13 +159,8 @@ function ContactPage() {
     setIsSubmitting(true);
 
     try {
-      const session = readSession();
-      const response = await fetch(`${API_URL}/api/contact`, {
+      const response = await authFetch(`${API_URL}/api/contact`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.token || ""}`,
-        },
         body: JSON.stringify({
           firstName: cleanText(form.firstName),
           lastName: cleanText(form.lastName),

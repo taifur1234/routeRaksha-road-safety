@@ -1,6 +1,7 @@
 import dotenv from "dotenv";
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import { createServer } from "http";
 import { connectDB, getMongoStatus } from "./config/db.js";
 import { ensureAdminUser } from "./controllers/authController.js";
@@ -34,6 +35,7 @@ app.disable("x-powered-by");
 app.set("trust proxy", 1);
 app.use(securityHeaders);
 app.use(cors(corsOptions()));
+app.use(cookieParser());
 app.use(express.json({ limit: "1.5mb" }));
 app.use(requestSanitizer);
 app.use("/api", apiLimiter);
@@ -45,6 +47,7 @@ app.use("/api/emergency-services", emergencyRoutes);
 app.use("/api/reputation", reputationRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/contact", contactRoutes);
+app.use("/api/chat", chatRoutes);
 
 app.get("/", (req, res) => {
   res.send("Server is running");
@@ -58,7 +61,6 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-app.use("/api/chat", chatRoutes);
 app.use("/api", notFoundHandler);
 app.use(errorHandler);
 

@@ -3,6 +3,14 @@ import { verifyToken } from "../utils/token.js";
 let ioInstance = null;
 const userSockets = new Map();
 
+function readCookie(cookieHeader, name) {
+  return String(cookieHeader || "")
+    .split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+}
+
 function rememberSocket(userId, socketId) {
   const key = String(userId);
   const sockets = userSockets.get(key) || new Set();
@@ -39,7 +47,10 @@ async function initializeSocketServer(httpServer) {
     });
 
     ioInstance.use((socket, next) => {
-      const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.replace("Bearer ", "");
+      const token =
+        socket.handshake.auth?.token ||
+        socket.handshake.headers?.authorization?.replace("Bearer ", "") ||
+        readCookie(socket.handshake.headers?.cookie, "routeRakshaToken");
       const payload = verifyToken(token);
 
       if (!payload?.id) {

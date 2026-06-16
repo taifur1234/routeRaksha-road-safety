@@ -174,7 +174,7 @@ function AuthPage({ mode }) {
       </Link>
 
       <section className="grid h-full overflow-hidden lg:grid-cols-[0.54fr_1fr]">
-        <aside className="auth-side rr-road-band relative hidden h-full overflow-hidden px-10 py-9 text-[#a5f278] lg:flex lg:flex-col lg:justify-between">
+        <aside className="auth-side relative hidden h-full overflow-hidden bg-[#101820] px-10 py-9 text-[#a5f278] lg:flex lg:flex-col lg:justify-between">
           <img
             src="/images/highway-safety-overlay.jpg"
             alt=""

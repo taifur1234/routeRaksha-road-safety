@@ -53,6 +53,10 @@ const accidentReportSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    imagePublicId: {
+      type: String,
+      default: "",
+    },
     confidenceScore: {
       type: Number,
       min: 0,
@@ -143,16 +147,13 @@ const accidentReportSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
-accidentReportSchema.pre("validate", function validateCoordinates(next) {
+accidentReportSchema.pre("validate", function validateCoordinates() {
   const hasLatitude = this.latitude !== null && this.latitude !== undefined;
   const hasLongitude = this.longitude !== null && this.longitude !== undefined;
 
   if (hasLatitude !== hasLongitude) {
-    next(new Error("Latitude and longitude must be provided together."));
-    return;
+    throw new Error("Latitude and longitude must be provided together.");
   }
-
-  next();
 });
 
 accidentReportSchema.index({ status: 1, latitude: 1, longitude: 1 });

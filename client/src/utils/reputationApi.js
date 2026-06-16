@@ -1,4 +1,4 @@
-import { getAuthToken } from "./session";
+import { authFetch } from "./session";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -15,13 +15,8 @@ function buildQuery(params = {}) {
 }
 
 async function requestReputation(path, options = {}) {
-  const response = await fetch(`${API_URL}/api/reputation${path}`, {
+  const response = await authFetch(`${API_URL}/api/reputation${path}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getAuthToken()}`,
-      ...(options.headers || {}),
-    },
   });
   const data = await response.json().catch(() => ({}));
 

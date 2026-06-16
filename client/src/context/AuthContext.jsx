@@ -6,6 +6,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth, googleProvider, hasFirebaseConfig } from "../config/firebase";
+import { authFetch } from "../utils/session";
 
 const AuthContext = createContext(null);
 const SESSION_KEY = "routeRakshaSession";
@@ -43,20 +44,42 @@ function readSessionJson(key, fallback) {
 }
 
 function readSession() {
-  return readJson(SESSION_KEY, null) || readSessionJson(`${SESSION_KEY}Temp`, null);
+  const localUser = readJson(SESSION_KEY, null);
+  const tempUser = readSessionJson(`${SESSION_KEY}Temp`, null);
+  const user = stripSensitiveSessionFields(localUser || tempUser);
+
+  if (localUser?.token) {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  }
+
+  if (tempUser?.token) {
+    sessionStorage.setItem(`${SESSION_KEY}Temp`, JSON.stringify(user));
+  }
+
+  return user;
 }
 
 function writeSession(user, remember = true) {
+  const safeUser = stripSensitiveSessionFields(user);
   localStorage.removeItem(`${SESSION_KEY}Temp`);
   sessionStorage.removeItem(`${SESSION_KEY}Temp`);
 
   if (remember) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+    localStorage.setItem(SESSION_KEY, JSON.stringify(safeUser));
     return;
   }
 
   localStorage.removeItem(SESSION_KEY);
-  sessionStorage.setItem(`${SESSION_KEY}Temp`, JSON.stringify(user));
+  sessionStorage.setItem(`${SESSION_KEY}Temp`, JSON.stringify(safeUser));
+}
+
+function stripSensitiveSessionFields(user) {
+  if (!user) {
+    return null;
+  }
+
+  const { token, ...safeUser } = user;
+  return safeUser;
 }
 
 function updateStoredSession(user) {
@@ -64,7 +87,7 @@ function updateStoredSession(user) {
   const existingTemp = readSessionJson(`${SESSION_KEY}Temp`, null);
   const nextUser = {
     ...(existingLocal || existingTemp || {}),
-    ...user,
+    ...stripSensitiveSessionFields(user),
   };
 
   if (existingLocal) {
@@ -85,9 +108,8 @@ function AuthProvider({ children }) {
 
   const requestAuth = useCallback(async function requestAuth(path, body) {
     try {
-      const response = await fetch(`${API_URL}/api/auth/${path}`, {
+      const response = await authFetch(`${API_URL}/api/auth/${path}`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const data = await response.json();
@@ -103,14 +125,10 @@ function AuthProvider({ children }) {
   }, []);
 
   const requestAccount = useCallback(async function requestAccount(path, options = {}) {
-    const session = readSession();
-
     try {
-      const response = await fetch(`${API_URL}/api/auth/${path}`, {
+      const response = await authFetch(`${API_URL}/api/auth/${path}`, {
         ...options,
         headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.token || ""}`,
           ...(options.headers || {}),
         },
       });
@@ -140,7 +158,7 @@ function AuthProvider({ children }) {
   }, [requestAuth]);
 
   const login = useCallback(async function login({ email, password, remember = true }) {
-    const result = await requestAuth("login", { email, password });
+    const result = await requestAuth("login", { email, password, remember });
 
     if (!result.ok) {
       return result;
@@ -234,6 +252,8 @@ function AuthProvider({ children }) {
     localStorage.removeItem(`${SESSION_KEY}Temp`);
     sessionStorage.removeItem(`${SESSION_KEY}Temp`);
 
+    authFetch(`${API_URL}/api/auth/logout`, { method: "POST" }).catch(() => {});
+
     if (auth?.currentUser) {
       signOut(auth).catch(() => {});
     }
@@ -254,10 +274,18 @@ function AuthProvider({ children }) {
     return { ok: true, user: nextUser };
   }, [requestAccount]);
 
-  const updateProfile = useCallback(async function updateProfile({ name, photoURL }) {
+  const updateProfile = useCallback(async function updateProfile({ name, photoURL, photoFile, removePhoto = false }) {
+    const body = photoFile ? new FormData() : JSON.stringify({ name, photoURL, removePhoto });
+
+    if (photoFile) {
+      body.set("name", name);
+      body.set("photo", photoFile);
+      body.set("removePhoto", "false");
+    }
+
     const result = await requestAccount("profile", {
       method: "PATCH",
-      body: JSON.stringify({ name, photoURL }),
+      body,
     });
 
     if (!result.ok) {

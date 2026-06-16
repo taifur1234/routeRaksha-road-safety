@@ -1,27 +1,13 @@
-const SESSION_KEY = "routeRakshaSession";
+import { authFetch } from "./session";
+
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const CACHE_TTL = 30 * 1000;
 const apiCache = new Map();
 const emergencyCache = new Map();
 
-function readJson(key, fallback) {
-  try {
-    const value = localStorage.getItem(key) || sessionStorage.getItem(key);
-    return value ? JSON.parse(value) : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function getAuthToken() {
-  const session = readJson(SESSION_KEY, null) || readJson(`${SESSION_KEY}Temp`, null);
-  return session?.token || "";
-}
-
 async function requestApi(path, options = {}) {
-  const token = getAuthToken();
   const method = options.method || "GET";
-  const cacheKey = `${method}:${path}:${token}`;
+  const cacheKey = `${method}:${path}`;
 
   if (method === "GET") {
     const cached = apiCache.get(cacheKey);
@@ -31,13 +17,8 @@ async function requestApi(path, options = {}) {
     }
   }
 
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await authFetch(`${API_URL}${path}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-      ...(options.headers || {}),
-    },
   });
   const data = await response.json().catch(() => ({}));
 

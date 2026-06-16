@@ -23,30 +23,34 @@ function decodeBase64Url(value) {
 }
 
 function verifyToken(token) {
-  const secret = process.env.JWT_SECRET || "route-raksha-dev-secret";
-  const [encodedHeader, encodedBody, signature] = String(token || "").split(".");
+  try {
+    const secret = process.env.JWT_SECRET || "route-raksha-dev-secret";
+    const [encodedHeader, encodedBody, signature] = String(token || "").split(".");
 
-  if (!encodedHeader || !encodedBody || !signature) {
+    if (!encodedHeader || !encodedBody || !signature) {
+      return null;
+    }
+
+    const unsigned = `${encodedHeader}.${encodedBody}`;
+    const expectedSignature = crypto.createHmac("sha256", secret).update(unsigned).digest("base64url");
+
+    const provided = Buffer.from(signature);
+    const expected = Buffer.from(expectedSignature);
+
+    if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
+      return null;
+    }
+
+    const payload = decodeBase64Url(encodedBody);
+
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+      return null;
+    }
+
+    return payload;
+  } catch {
     return null;
   }
-
-  const unsigned = `${encodedHeader}.${encodedBody}`;
-  const expectedSignature = crypto.createHmac("sha256", secret).update(unsigned).digest("base64url");
-
-  const provided = Buffer.from(signature);
-  const expected = Buffer.from(expectedSignature);
-
-  if (provided.length !== expected.length || !crypto.timingSafeEqual(provided, expected)) {
-    return null;
-  }
-
-  const payload = decodeBase64Url(encodedBody);
-
-  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-    return null;
-  }
-
-  return payload;
 }
 
 export { signToken, verifyToken };

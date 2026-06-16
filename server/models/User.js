@@ -27,6 +27,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    photoPublicId: {
+      type: String,
+      default: "",
+    },
     provider: {
       type: String,
       enum: ["local", "google"],

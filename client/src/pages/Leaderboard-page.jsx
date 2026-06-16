@@ -164,22 +164,19 @@ function RankRow({ rank, user }) {
   const isTopRank = rank <= 3;
 
   return (
-    <article className="group rounded-lg border border-[#d8e5d3] bg-white p-4 shadow-[0_12px_32px_rgba(16,24,32,0.06)] transition hover:-translate-y-0.5 hover:border-[#18a999]/40 hover:shadow-[0_20px_55px_rgba(16,24,32,0.1)]">
-      <div className="grid gap-4 lg:grid-cols-[4rem_1.25fr_1fr_0.8fr] lg:items-center">
-        <div className="flex items-center gap-3 lg:block">
+    <article className="group flex h-full flex-col rounded-lg border border-[#d8e5d3] bg-white p-4 shadow-[0_12px_32px_rgba(16,24,32,0.06)] transition hover:-translate-y-0.5 hover:border-[#18a999]/40 hover:shadow-[0_20px_55px_rgba(16,24,32,0.1)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-3">
           <span
-            className={`grid size-12 place-items-center rounded-full text-sm font-black ${
+            className={`grid size-11 shrink-0 place-items-center rounded-full text-sm font-black ${
               isTopRank ? "bg-[#101820] text-white" : "bg-[#f7faf6] text-[#173a0b]"
             }`}
           >
             #{rank}
           </span>
-        </div>
-
-        <div className="flex min-w-0 items-center gap-3">
           <UserAvatar
             user={user}
-            className="size-12"
+            className="size-11 shrink-0"
             fallbackClassName="shadow-sm"
             imageClassName="shadow-sm"
             textClassName="text-sm"
@@ -190,34 +187,38 @@ function RankRow({ rank, user }) {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            ["Pts", user.reputationPoints],
-            ["Ok", user.approvedReports],
-            ["Rate", `${approvalRate}%`],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-lg bg-[#f7faf6] px-3 py-2">
-              <p className="text-base font-black text-[#173a0b]">{value}</p>
-              <p className="text-[10px] font-black uppercase tracking-[0.1em] text-[#78936d]">
-                {label}
-              </p>
-            </div>
-          ))}
-        </div>
+        <span className="rounded-full border border-[#d8e5d3] bg-[#f7faf6] px-3 py-1 text-xs font-black text-[#46623d]">
+          Rank
+        </span>
+      </div>
 
-        <div>
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#78936d]">
-              Approval
+      <div className="mt-4 grid grid-cols-3 gap-2">
+        {[
+          ["Points", user.reputationPoints],
+          ["Approved", user.approvedReports],
+          ["Submitted", user.reportsSubmitted],
+        ].map(([label, value]) => (
+          <div key={label} className="rounded-lg border border-[#d8e5d3] bg-[#f7faf6] px-3 py-2 text-center">
+            <p className="text-base font-black text-[#173a0b]">{value}</p>
+            <p className="mt-1 text-[9px] font-black uppercase tracking-[0.08em] text-[#78936d]">
+              {label}
             </p>
-            <p className="text-xs font-black text-[#173a0b]">{approvalRate}%</p>
           </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#eaf2ef]">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-[#18a999] to-[#7ce7b2]"
-              style={{ width: `${Math.min(100, Math.max(0, approvalRate))}%` }}
-            />
-          </div>
+        ))}
+      </div>
+
+      <div className="mt-4 rounded-lg border border-[#d8e5d3] bg-white p-3">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[10px] font-black uppercase tracking-[0.14em] text-[#78936d]">
+            Approval
+          </p>
+          <p className="text-xs font-black text-[#173a0b]">{approvalRate}%</p>
+        </div>
+        <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#eaf2ef]">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-[#18a999] to-[#7ce7b2]"
+            style={{ width: `${Math.min(100, Math.max(0, approvalRate))}%` }}
+          />
         </div>
       </div>
 
@@ -231,7 +232,6 @@ function RankRow({ rank, user }) {
 function LeaderboardPage() {
   const [users, setUsers] = useState([]);
   const [pagination, setPagination] = useState(null);
-  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("reputationPoints");
   const [error, setError] = useState("");
@@ -241,7 +241,7 @@ function LeaderboardPage() {
     let isMounted = true;
     setIsLoading(true);
 
-    getLeaderboard({ page, search, sortBy })
+    getLeaderboard({ page: 1, limit: 10, search, sortBy })
       .then((data) => {
         if (isMounted) {
           setUsers(data.users || []);
@@ -265,9 +265,9 @@ function LeaderboardPage() {
     return () => {
       isMounted = false;
     };
-  }, [page, search, sortBy]);
+  }, [search, sortBy]);
 
-  const startRank = ((pagination?.page || page) - 1) * (pagination?.limit || 10);
+  const startRank = 0;
   const topUsers = users.slice(0, 3);
   const summary = useMemo(() => {
     const totals = users.reduce(
@@ -330,7 +330,6 @@ function LeaderboardPage() {
               <input
                 value={search}
                 onChange={(event) => {
-                  setPage(1);
                   setSearch(event.target.value);
                 }}
                 placeholder="Search reporters by name"
@@ -341,7 +340,6 @@ function LeaderboardPage() {
               <select
                 value={sortBy}
                 onChange={(event) => {
-                  setPage(1);
                   setSortBy(event.target.value);
                 }}
                 className="min-h-12 rounded-full border border-[#cddcc7] bg-white px-4 text-sm font-bold outline-none"
@@ -355,7 +353,6 @@ function LeaderboardPage() {
                 onClick={() => {
                   setSearch("");
                   setSortBy("reputationPoints");
-                  setPage(1);
                 }}
                 className="min-h-12 rounded-full border border-[#d8e5d3] bg-[#f7faf6] px-5 text-sm font-black text-[#173a0b]"
               >
@@ -383,7 +380,7 @@ function LeaderboardPage() {
                 </h2>
               </div>
               <p className="text-sm font-bold text-[#46623d]">
-                Showing page {pagination?.page || page}{pagination?.pages ? ` of ${pagination.pages}` : ""}
+                Showing top {Math.min(10, pagination?.total || users.length)} contributors
               </p>
             </div>
 
@@ -399,11 +396,11 @@ function LeaderboardPage() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-2xl font-black text-[#173a0b]">Contributor rankings</h2>
             <span className="rounded-full border border-[#d8e5d3] bg-white px-4 py-2 text-xs font-black text-[#46623d]">
-              {pagination?.total || users.length} reporters
+              Top {users.length} of {pagination?.total || users.length} reporters
             </span>
           </div>
 
-          <div className="grid gap-3">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {!isLoading &&
               users.map((user, index) => {
                 const rank = startRank + index + 1;
@@ -423,28 +420,6 @@ function LeaderboardPage() {
             )}
           </div>
         </section>
-
-        {pagination?.pages > 1 && (
-          <div className="mt-6 flex items-center justify-between gap-3">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage((value) => Math.max(1, value - 1))}
-              className="rounded-full border border-[#d8e5d3] bg-white px-5 py-3 text-sm font-black text-[#173a0b] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <span className="rounded-full bg-[#f7faf6] px-4 py-2 text-sm font-black text-[#46623d]">
-              Page {pagination.page} of {pagination.pages}
-            </span>
-            <button
-              disabled={page >= pagination.pages}
-              onClick={() => setPage((value) => value + 1)}
-              className="rounded-full border border-[#d8e5d3] bg-white px-5 py-3 text-sm font-black text-[#173a0b] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        )}
       </section>
     </main>
   );

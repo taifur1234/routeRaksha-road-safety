@@ -6,12 +6,22 @@ import {
   isValidTime,
 } from "../utils/validation.js";
 import User from "../models/User.js";
+import { deleteCloudinaryImage, uploadImageBuffer } from "../services/cloudinaryService.js";
 import { createNotification } from "../services/notificationService.js";
 import { recalculateUserReputation } from "../services/reputationService.js";
 
 const INCIDENT_TYPES = new Set(["Road accident", "Near miss", "Dangerous turn", "Pothole or bad road"]);
 const SEVERITY_OPTIONS = new Set(["High", "Medium", "Low"]);
 const LIGHT_OPTIONS = new Set(["Day", "Night", "Unknown"]);
+const REPORT_IMAGE_MAX_BYTES = 1024 * 1024;
+
+function fileToDataUrl(file) {
+  if (!file?.buffer || !file?.mimetype) {
+    return "";
+  }
+
+  return `data:${file.mimetype};base64,${file.buffer.toString("base64")}`;
+}
 
 function toRadians(value) {
   return (value * Math.PI) / 180;
@@ -43,6 +53,7 @@ function normalizeReport(report) {
     lightCondition: report.lightCondition,
     notes: report.notes,
     imageData: report.imageData,
+    imagePublicId: report.imagePublicId,
     confidenceScore: report.confidenceScore,
     accidentFrequency: report.accidentFrequency,
     routeRadiusMeters: report.routeRadiusMeters,
@@ -84,7 +95,8 @@ async function createReport(req, res) {
   const severity = SEVERITY_OPTIONS.has(req.body.severity) ? req.body.severity : "";
   const accidentTime = cleanText(req.body.accidentTime, 5);
   const lightCondition = LIGHT_OPTIONS.has(req.body.lightCondition) ? req.body.lightCondition : "Unknown";
-  const imageData = String(req.body.imageData || "");
+  let imageData = String(req.body.imageData || "");
+  let imagePublicId = "";
 
   if (!location || !description) {
     return res.status(400).json({ ok: false, message: "Location and description are required." });
@@ -105,8 +117,12 @@ async function createReport(req, res) {
     return res.status(400).json({ ok: false, message: "Please enter a valid accident time." });
   }
 
-  if (!isValidImageData(imageData)) {
+  if (imageData && !isValidImageData(imageData)) {
     return res.status(400).json({ ok: false, message: "Image must be JPG, PNG, or WebP and under 1 MB." });
+  }
+
+  if (req.file?.size > REPORT_IMAGE_MAX_BYTES) {
+    return res.status(400).json({ ok: false, message: "Image must be under 1 MB." });
   }
 
   const numericLatitude = Number(req.body.latitude);
@@ -130,9 +146,12 @@ async function createReport(req, res) {
   });
   const duplicate = recentReports.find((report) => {
     const sameType = String(report.type || "").toLowerCase() === String(type || "").toLowerCase();
-    const sameLocation =
-      report.location.toLowerCase().includes(location.toLowerCase()) ||
-      location.toLowerCase().includes(report.location.toLowerCase());
+    const existingLocation = String(report.location || "").toLowerCase();
+    const nextLocation = String(location || "").toLowerCase();
+    const sameLocation = Boolean(existingLocation && nextLocation) && (
+      existingLocation.includes(nextLocation) ||
+      nextLocation.includes(existingLocation)
+    );
 
     if (hasCoordinates && Number.isFinite(report.latitude) && Number.isFinite(report.longitude)) {
       return (
@@ -153,6 +172,17 @@ async function createReport(req, res) {
     });
   }
 
+  if (req.file) {
+    try {
+      const uploaded = await uploadImageBuffer(req.file, "route-raksha/report-images");
+      imageData = uploaded.url;
+      imagePublicId = uploaded.publicId;
+    } catch {
+      imageData = fileToDataUrl(req.file);
+      imagePublicId = "";
+    }
+  }
+
   const report = await AccidentReport.create({
     location,
     latitude: hasCoordinates ? numericLatitude : null,
@@ -164,6 +194,7 @@ async function createReport(req, res) {
     lightCondition,
     notes,
     imageData,
+    imagePublicId,
     confidenceScore: imageData ? 72 : 64,
     accidentFrequency: 1,
     sourceType: "Community report",
@@ -274,6 +305,8 @@ async function deleteReport(req, res) {
   if (!report) {
     return res.status(404).json({ ok: false, message: "Report not found." });
   }
+
+  await deleteCloudinaryImage(report.imagePublicId);
 
   return res.json({ ok: true, report: normalizeReport(report) });
 }

@@ -10,8 +10,24 @@ function readJson(key, fallback) {
 }
 
 function getAuthToken() {
-  const session = readJson(SESSION_KEY, null) || readJson(`${SESSION_KEY}Temp`, null);
-  return session?.token || "";
+  return "";
 }
 
-export { getAuthToken };
+function hasStoredSession() {
+  return Boolean(readJson(SESSION_KEY, null) || readJson(`${SESSION_KEY}Temp`, null));
+}
+
+function authFetch(url, options = {}) {
+  const headers = {
+    ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+    ...(options.headers || {}),
+  };
+
+  return fetch(url, {
+    ...options,
+    credentials: "include",
+    headers,
+  });
+}
+
+export { authFetch, getAuthToken, hasStoredSession };

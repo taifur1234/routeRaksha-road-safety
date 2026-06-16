@@ -8,7 +8,9 @@ import {
   updateReportStatus,
 } from "../controllers/reportController.js";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
+import { asyncHandler } from "../middleware/asyncHandler.js";
 import { createRateLimiter, userOrIpKey } from "../middleware/rateLimit.js";
+import { uploadReportImage } from "../middleware/upload.js";
 
 const router = express.Router();
 const reportCreateLimiter = createRateLimiter({
@@ -18,11 +20,11 @@ const reportCreateLimiter = createRateLimiter({
   keyGenerator: userOrIpKey,
 });
 
-router.get("/", requireAuth, listReports);
-router.get("/approved", requireAuth, listApprovedReports);
-router.post("/", requireAuth, reportCreateLimiter, createReport);
-router.patch("/:id", requireAuth, requireAdmin, updateReport);
-router.patch("/:id/status", requireAuth, requireAdmin, updateReportStatus);
-router.delete("/:id", requireAuth, requireAdmin, deleteReport);
+router.get("/", requireAuth, asyncHandler(listReports));
+router.get("/approved", requireAuth, asyncHandler(listApprovedReports));
+router.post("/", requireAuth, reportCreateLimiter, uploadReportImage, asyncHandler(createReport));
+router.patch("/:id", requireAuth, requireAdmin, asyncHandler(updateReport));
+router.patch("/:id/status", requireAuth, requireAdmin, asyncHandler(updateReportStatus));
+router.delete("/:id", requireAuth, requireAdmin, asyncHandler(deleteReport));
 
 export default router;

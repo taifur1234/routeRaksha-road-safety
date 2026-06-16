@@ -1,4 +1,4 @@
-import { getAuthToken } from "./session";
+import { authFetch } from "./session";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
@@ -15,13 +15,8 @@ function buildQuery(params = {}) {
 }
 
 async function requestNotifications(path, options = {}) {
-  const response = await fetch(`${API_URL}/api/notifications${path}`, {
+  const response = await authFetch(`${API_URL}/api/notifications${path}`, {
     ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${getAuthToken()}`,
-      ...(options.headers || {}),
-    },
   });
   const data = await response.json().catch(() => ({}));
 

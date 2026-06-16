@@ -119,9 +119,12 @@ function ReportAccident() {
   const [locationStatus, setLocationStatus] = useState("");
   const [mapStatus, setMapStatus] = useState("Click the map to auto-fill accident coordinates.");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSuccessPopupClosing, setIsSuccessPopupClosing] = useState(false);
   const mapElementRef = useRef(null);
   const mapRef = useRef(null);
   const markerRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const successPopupTimerRef = useRef(null);
   const [form, setForm] = useState({
     location: "",
     type: "Road accident",
@@ -132,9 +135,42 @@ function ReportAccident() {
     notes: "",
     imageData: "",
     imageName: "",
+    imageFile: null,
     latitude: null,
     longitude: null,
   });
+
+  useEffect(() => () => {
+    if (form.imageData?.startsWith("blob:")) {
+      URL.revokeObjectURL(form.imageData);
+    }
+  }, [form.imageData]);
+
+  useEffect(() => {
+    if (!submitted) {
+      return undefined;
+    }
+
+    const originalOverflow = document.body.style.overflow;
+    const originalPaddingRight = document.body.style.paddingRight;
+    const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+
+    document.body.style.overflow = "hidden";
+    if (scrollbarWidth > 0) {
+      document.body.style.paddingRight = `${scrollbarWidth}px`;
+    }
+
+    return () => {
+      document.body.style.overflow = originalOverflow;
+      document.body.style.paddingRight = originalPaddingRight;
+    };
+  }, [submitted]);
+
+  useEffect(() => () => {
+    if (successPopupTimerRef.current) {
+      window.clearTimeout(successPopupTimerRef.current);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -306,9 +342,10 @@ function ReportAccident() {
         accidentTime: form.accidentTime,
         lightCondition: form.lightCondition,
         notes: cleanText(form.notes),
-        imageData: form.imageData,
+        imageFile: form.imageFile,
       });
 
+      setIsSuccessPopupClosing(false);
       setSubmitted(true);
       setError("");
       setForm({
@@ -321,9 +358,13 @@ function ReportAccident() {
         notes: "",
         imageData: "",
         imageName: "",
+        imageFile: null,
         latitude: null,
         longitude: null,
       });
+      if (imageInputRef.current) {
+        imageInputRef.current.value = "";
+      }
     } catch (saveError) {
       setError(saveError.message || "Could not submit report. Please try again.");
     } finally {
@@ -348,16 +389,52 @@ function ReportAccident() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm((current) => ({
+    const previewUrl = URL.createObjectURL(file);
+    setForm((current) => {
+      if (current.imageData?.startsWith("blob:")) {
+        URL.revokeObjectURL(current.imageData);
+      }
+
+      return {
         ...current,
-        imageData: String(reader.result || ""),
+        imageData: previewUrl,
         imageName: file.name,
-      }));
-      setError("");
-    };
-    reader.readAsDataURL(file);
+        imageFile: file,
+      };
+    });
+    setError("");
+  }
+
+  function closeSuccessPopup() {
+    if (isSuccessPopupClosing) {
+      return;
+    }
+
+    setIsSuccessPopupClosing(true);
+    successPopupTimerRef.current = window.setTimeout(() => {
+      setSubmitted(false);
+      setIsSuccessPopupClosing(false);
+      successPopupTimerRef.current = null;
+    }, 220);
+  }
+
+  function removeImage() {
+    setForm((current) => {
+      if (current.imageData?.startsWith("blob:")) {
+        URL.revokeObjectURL(current.imageData);
+      }
+
+      return {
+        ...current,
+        imageData: "",
+        imageName: "",
+        imageFile: null,
+      };
+    });
+    if (imageInputRef.current) {
+      imageInputRef.current.value = "";
+    }
+    setError("");
   }
 
   if (!isLoggedIn) {
@@ -427,7 +504,8 @@ function ReportAccident() {
   }
 
   return (
-    <main className="motion-page bg-[#fbfcfa] text-[#173a0b]">
+    <>
+      <main className="motion-page bg-[#fbfcfa] text-[#173a0b]">
       <section className="bg-[#e5eedf] px-4 py-14 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-7xl">
           <div className="grid gap-8 lg:grid-cols-[0.94fr_1.06fr] lg:items-end">
@@ -644,8 +722,10 @@ function ReportAccident() {
                 />
               </label>
 
-              <label className="grid gap-2 text-sm font-black text-[#173a0b]">
-                Accident image
+              <div className="grid gap-2 text-sm font-black text-[#173a0b]">
+                <p>
+                  Accident image <span className="text-xs font-bold text-[#46623d]">(optional)</span>
+                </p>
                 <div className="flex flex-col gap-3 rounded-lg border border-dashed border-[#cddcc7] bg-[#f1f6f0] p-4 sm:flex-row sm:items-center sm:justify-between">
                   <div className="flex items-center gap-3">
                     <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-white text-[#173a0b]">
@@ -653,12 +733,16 @@ function ReportAccident() {
                     </span>
                     <div>
                       <p className="text-sm font-black text-[#173a0b]">
-                        {form.imageName || "Upload supporting photo"}
+                        {form.imageName || "Add supporting photo"}
                       </p>
-                      <p className="mt-1 text-xs font-bold text-[#46623d]">JPG, PNG, or WebP, under 1 MB</p>
+                      <p className="mt-1 text-xs font-bold text-[#46623d]">
+                        Optional JPG, PNG, or WebP, under 1 MB
+                      </p>
                     </div>
                   </div>
                   <input
+                    ref={imageInputRef}
+                    aria-label="Optional accident image"
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
                     onChange={handleImageUpload}
@@ -666,40 +750,31 @@ function ReportAccident() {
                   />
                 </div>
                 {form.imageData && (
-                  <img
-                    src={form.imageData}
-                    alt="Accident report preview"
-                    className="h-36 w-full rounded-lg border border-[#d8e5d3] object-cover"
-                  />
+                  <div className="overflow-hidden rounded-lg border border-[#d8e5d3] bg-white">
+                    <img
+                      src={form.imageData}
+                      alt="Accident report preview"
+                      className="h-36 w-full object-cover"
+                    />
+                    <div className="flex items-center justify-between gap-3 px-3 py-2">
+                      <p className="truncate text-xs font-bold text-[#46623d]">{form.imageName}</p>
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="min-h-9 rounded-full border border-red-200 bg-red-50 px-4 text-xs font-black text-red-700"
+                      >
+                        Remove image
+                      </button>
+                    </div>
+                  </div>
                 )}
-              </label>
+              </div>
             </div>
 
             {error && (
               <p className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-black text-red-700">
                 {error}
               </p>
-            )}
-
-            {submitted && (
-              <div className="mt-5 rounded-lg border border-[#9cec6d] bg-[#efffe8] px-4 py-3">
-                <div className="flex items-start gap-3">
-                  <span className="grid size-8 shrink-0 place-items-center rounded-full bg-[#9cec6d] text-[#102f00]">
-                    <Icon name="check" className="size-4" strokeWidth={2.6} />
-                  </span>
-                  <div>
-                    <p className="text-sm font-black text-[#173a0b]">
-                      Accident report submitted for admin review.
-                    </p>
-                    <Link
-                      to="/report-history"
-                      className="mt-2 inline-flex text-sm font-black text-[#173a0b] underline decoration-[#9cec6d] decoration-4 underline-offset-4"
-                    >
-                      View report history
-                    </Link>
-                  </div>
-                </div>
-              </div>
             )}
 
             <button
@@ -746,7 +821,50 @@ function ReportAccident() {
       </section>
 
       <Footer />
-    </main>
+      </main>
+
+      {submitted && (
+        <div
+          className={`report-success-backdrop fixed left-0 top-0 z-[100] grid h-screen w-screen place-items-center overflow-hidden bg-[#102f00]/45 p-4 backdrop-blur-sm ${
+            isSuccessPopupClosing ? "is-closing" : ""
+          }`}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="report-success-title"
+            className={`report-success-panel max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-lg border border-[#d8e5d3] bg-[#fbfcfa] p-6 text-[#173a0b] shadow-[0_32px_90px_rgba(16,47,0,0.28)] ${
+              isSuccessPopupClosing ? "is-closing" : ""
+            }`}
+          >
+            <span className="mx-auto grid size-14 place-items-center rounded-full bg-[#9cec6d] text-[#102f00]">
+              <Icon name="check" className="size-7" strokeWidth={2.6} />
+            </span>
+            <h2 id="report-success-title" className="mt-5 text-center text-2xl font-black leading-tight">
+              Report submitted successfully
+            </h2>
+            <p className="mt-3 text-center text-sm font-semibold leading-6 text-[#46623d]">
+              Your accident report is now pending admin review.
+            </p>
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <Link
+                to="/report-history"
+                className="flex min-h-11 items-center justify-center rounded-full bg-[#173a0b] px-5 text-sm font-black text-white transition hover:bg-[#102f00]"
+              >
+                View history
+              </Link>
+              <button
+                type="button"
+                onClick={closeSuccessPopup}
+                className="min-h-11 rounded-full border border-[#173a0b] bg-white px-5 text-sm font-black text-[#173a0b] transition hover:bg-[#f1f6f0]"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

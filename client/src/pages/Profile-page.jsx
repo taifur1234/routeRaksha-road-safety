@@ -8,8 +8,7 @@ import { cleanText } from "../utils/validation";
 
 const ACCEPTED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
-const MAX_PHOTO_CHARS = 450_000;
-const PROFILE_PHOTO_PATTERN = /^(https?:\/\/[^\s<>]+|data:image\/(png|jpe?g|webp);base64,)/i;
+const PROFILE_PHOTO_PATTERN = /^https?:\/\/[^\s<>]+$/i;
 
 function Icon({ name, className = "size-5", strokeWidth = 2 }) {
   const icons = {
@@ -80,39 +79,7 @@ function Icon({ name, className = "size-5", strokeWidth = 2 }) {
   );
 }
 
-function readFileAsDataURL(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("Could not read this image."));
-    reader.readAsDataURL(file);
-  });
-}
-
-function loadImage(dataURL) {
-  return new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error("Please choose a valid profile image."));
-    image.src = dataURL;
-  });
-}
-
-function drawCompressedImage(image, maxSize, quality) {
-  const width = image.naturalWidth || image.width;
-  const height = image.naturalHeight || image.height;
-  const scale = Math.min(1, maxSize / Math.max(width, height));
-  const canvas = document.createElement("canvas");
-  canvas.width = Math.max(1, Math.round(width * scale));
-  canvas.height = Math.max(1, Math.round(height * scale));
-
-  const context = canvas.getContext("2d");
-  context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-  return canvas.toDataURL("image/jpeg", quality);
-}
-
-async function compressProfilePhoto(file) {
+function validateProfilePhoto(file) {
   if (!ACCEPTED_IMAGE_TYPES.has(file.type)) {
     throw new Error("Please choose a JPG, PNG, or WEBP image.");
   }
@@ -120,20 +87,6 @@ async function compressProfilePhoto(file) {
   if (file.size > MAX_UPLOAD_BYTES) {
     throw new Error("Profile photo must be under 5 MB.");
   }
-
-  const dataURL = await readFileAsDataURL(file);
-  const image = await loadImage(dataURL);
-  let compressed = drawCompressedImage(image, 520, 0.82);
-
-  if (compressed.length > MAX_PHOTO_CHARS) {
-    compressed = drawCompressedImage(image, 360, 0.72);
-  }
-
-  if (compressed.length > MAX_PHOTO_CHARS) {
-    throw new Error("This photo is too large. Please choose a smaller image.");
-  }
-
-  return compressed;
 }
 
 function ProfilePage() {
@@ -149,6 +102,7 @@ function ProfilePage() {
   const [form, setForm] = useState({
     name: user?.name || "",
     photoURL: user?.photoURL || "",
+    photoFile: null,
   });
 
   const isGoogleAccount = user?.provider === "google";
@@ -163,8 +117,15 @@ function ProfilePage() {
     setForm({
       name: user?.name || "",
       photoURL: user?.photoURL || "",
+      photoFile: null,
     });
   }, [user?.name, user?.photoURL]);
+
+  useEffect(() => () => {
+    if (form.photoURL?.startsWith("blob:")) {
+      URL.revokeObjectURL(form.photoURL);
+    }
+  }, [form.photoURL]);
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -221,8 +182,15 @@ function ProfilePage() {
     setProfileSuccess("");
 
     try {
-      const photoURL = await compressProfilePhoto(file);
-      setForm((current) => ({ ...current, photoURL }));
+      validateProfilePhoto(file);
+      const photoURL = URL.createObjectURL(file);
+      setForm((current) => {
+        if (current.photoURL?.startsWith("blob:")) {
+          URL.revokeObjectURL(current.photoURL);
+        }
+
+        return { ...current, photoURL, photoFile: file };
+      });
       setProfileSuccess("Photo ready. Save profile to update it everywhere.");
     } catch (uploadError) {
       setProfileError(uploadError.message || "Could not process this photo.");
@@ -232,7 +200,13 @@ function ProfilePage() {
   }
 
   function removePhoto() {
-    setForm((current) => ({ ...current, photoURL: "" }));
+    setForm((current) => {
+      if (current.photoURL?.startsWith("blob:")) {
+        URL.revokeObjectURL(current.photoURL);
+      }
+
+      return { ...current, photoURL: "", photoFile: null };
+    });
     setProfileError("");
     setProfileSuccess("Photo removed from preview. Save profile to update it everywhere.");
   }
@@ -240,7 +214,13 @@ function ProfilePage() {
   async function handleSaveProfile(event) {
     event.preventDefault();
     const name = cleanText(form.name);
-    const photoURL = cleanText(form.photoURL);
+    const isRemovingPhoto = !form.photoFile && !form.photoURL && Boolean(user?.photoURL);
+    const hasExternalPhotoChange =
+      !form.photoFile &&
+      form.photoURL &&
+      form.photoURL !== user?.photoURL &&
+      !form.photoURL.startsWith("blob:");
+    const photoURL = hasExternalPhotoChange ? cleanText(form.photoURL) : undefined;
 
     if (name.length < 2 || name.length > 60) {
       setProfileError("Name must be between 2 and 60 characters.");
@@ -256,7 +236,12 @@ function ProfilePage() {
     setProfileError("");
     setProfileSuccess("");
 
-    const result = await updateProfile({ name, photoURL });
+    const result = await updateProfile({
+      name,
+      photoURL,
+      photoFile: form.photoFile,
+      removePhoto: isRemovingPhoto,
+    });
     setIsSaving(false);
 
     if (!result.ok) {
@@ -264,6 +249,11 @@ function ProfilePage() {
       return;
     }
 
+    setForm({
+      name: result.user?.name || name,
+      photoURL: result.user?.photoURL || "",
+      photoFile: null,
+    });
     setProfileSuccess("Profile updated successfully.");
   }
 
@@ -419,7 +409,7 @@ function ProfilePage() {
                 <div>
                   <p className="text-sm font-black text-[#173a0b]">Photo upload</p>
                   <p className="mt-1 text-sm font-semibold leading-6 text-[#46623d]">
-                    Photos are compressed in the browser, saved with your profile, and shown on the navbar, profile, chat, and leaderboard.
+                    Photos are uploaded securely and shown on the navbar, profile, chat, and leaderboard.
                   </p>
                 </div>
               </div>
@@ -447,7 +437,7 @@ function ProfilePage() {
               </button>
               <button
                 type="button"
-                onClick={() => setForm({ name: user?.name || "", photoURL: user?.photoURL || "" })}
+                onClick={() => setForm({ name: user?.name || "", photoURL: user?.photoURL || "", photoFile: null })}
                 className="flex min-h-12 items-center justify-center rounded-full border border-[#d8e5d3] bg-white px-6 text-sm font-black text-[#173a0b]"
               >
                 Reset changes

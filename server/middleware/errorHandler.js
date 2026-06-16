@@ -15,6 +15,10 @@ function errorHandler(error, req, res, next) {
     return res.status(400).json({ ok: false, message: "Invalid identifier." });
   }
 
+  if (error?.name === "MulterError" || String(error?.message || "").includes("Only JPG")) {
+    return res.status(400).json({ ok: false, message: error.message || "Image upload failed." });
+  }
+
   if (String(error?.message || "").includes("Latitude and longitude")) {
     return res.status(400).json({ ok: false, message: error.message });
   }
@@ -25,7 +29,7 @@ function errorHandler(error, req, res, next) {
 
   const status = Number(error?.statusCode || error?.status || 500);
   const safeStatus = status >= 400 && status < 600 ? status : 500;
-  const message = safeStatus >= 500 ? "Something went wrong. Please try again." : error.message;
+  const message = error?.statusCode ? error.message : safeStatus >= 500 ? "Something went wrong. Please try again." : error.message;
 
   if (safeStatus >= 500) {
     console.error(error);
