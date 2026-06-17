@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
-import { API_URL } from "../config/api";
+import { buildApiUrl } from "../config/api";
 
 const quickQuestions = [
   "How do I plan a safer route?",
@@ -149,6 +149,7 @@ function Chatbot() {
     },
   ]);
   const formRef = useRef(null);
+  const messagesEndRef = useRef(null);
 
   const apiMessages = useMemo(
     () => messages.filter((message) => ["user", "assistant"].includes(message.role)),
@@ -156,6 +157,16 @@ function Chatbot() {
   );
   const displayName = getUserDisplayName(user);
   const firstName = displayName.split(" ")[0] || displayName;
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
+  }, [isLoading, isOpen, messages]);
 
   async function sendMessage(text) {
     if (!text || isLoading) return;
@@ -166,7 +177,7 @@ function Chatbot() {
     setIsLoading(true);
 
     try {
-      const response = await fetch(`${API_URL}/api/chat`, {
+      const response = await fetch(buildApiUrl("/api/chat"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -308,6 +319,7 @@ function Chatbot() {
                 </div>
               </div>
             )}
+            <div ref={messagesEndRef} />
           </div>
 
           <form ref={formRef} onSubmit={handleSubmit} className="border-t border-[#cfe4d2] bg-white p-3">
