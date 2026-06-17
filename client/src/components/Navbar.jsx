@@ -106,6 +106,10 @@ const navItems = [
   { label: "Contact", to: "/contact", icon: "mail" },
 ];
 
+const mobileNavItems = navItems.filter(({ to }) =>
+  ["/", "/plan-route", "/report-accident"].includes(to)
+);
+
 function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
@@ -159,7 +163,7 @@ function Navbar() {
             </span>
             <span className="min-w-0">
               <span className="block text-lg font-black tracking-tight sm:text-xl">RouteRaksha</span>
-              <span className="block truncate text-[11px] font-black uppercase tracking-[0.18em] text-slate-500">
+              <span className="hidden truncate text-[11px] font-black uppercase tracking-[0.18em] text-slate-500 sm:block">
                 Safety intelligence
               </span>
             </span>
@@ -297,7 +301,7 @@ function Navbar() {
         {isOpen && (
           <div className="border-t border-slate-200 bg-white/95 px-4 pb-5 pt-2 shadow-[0_24px_70px_rgba(7,17,31,0.12)] backdrop-blur lg:hidden">
             <div className="mx-auto grid max-w-7xl gap-2">
-              {navItems.map((item) => {
+              {mobileNavItems.map((item) => {
                 const active = isActiveRoute(item.to);
 
                 return (
@@ -319,6 +323,23 @@ function Navbar() {
                   </Link>
                 );
               })}
+
+              <div className="grid grid-cols-3 gap-2">
+                {[
+                  ["Leaderboard", "/leaderboard"],
+                  ["About", "/about"],
+                  ["Contact", "/contact"],
+                ].map(([label, to]) => (
+                  <Link
+                    key={label}
+                    to={to}
+                    onClick={() => setIsOpen(false)}
+                    className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-center text-xs font-black text-slate-600"
+                  >
+                    {label}
+                  </Link>
+                ))}
+              </div>
 
               {isLoggedIn ? (
                 <div className="mt-2 rounded-2xl border border-slate-200 bg-slate-50 p-3">

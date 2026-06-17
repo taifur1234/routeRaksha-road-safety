@@ -29,7 +29,7 @@ function ScrollRevealProvider({ children, watchKey }) {
         }
 
         element.classList.add("scroll-reveal");
-        element.style.setProperty("--reveal-delay", `${Math.min((index % 5) * 60, 240)}ms`);
+        element.style.setProperty("--reveal-delay", `${Math.min((index % 4) * 35, 105)}ms`);
       });
 
       if (prefersReducedMotion) {
@@ -47,8 +47,8 @@ function ScrollRevealProvider({ children, watchKey }) {
           });
         },
         {
-          rootMargin: "0px 0px -10% 0px",
-          threshold: 0.12,
+          rootMargin: "0px 0px -4% 0px",
+          threshold: 0.08,
         },
       );
 
@@ -58,7 +58,7 @@ function ScrollRevealProvider({ children, watchKey }) {
     }
 
     const frame = requestAnimationFrame(setupReveal);
-    const timer = window.setTimeout(setupReveal, 150);
+    const timer = window.setTimeout(setupReveal, 80);
 
     return () => {
       cancelAnimationFrame(frame);

@@ -72,8 +72,8 @@ function SocialIcon({ name }) {
 
 function Footer() {
   return (
-    <footer className="border-t border-slate-200 bg-white px-4 py-12 text-slate-950 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-7xl gap-10 lg:grid-cols-[1.15fr_2fr]">
+    <footer className="border-t border-slate-200 bg-white px-4 py-8 text-slate-950 sm:px-6 sm:py-12 lg:px-8">
+      <div className="mx-auto grid max-w-7xl gap-8 lg:grid-cols-[1.15fr_2fr] lg:gap-10">
         <div>
           <Link to="/" className="group flex w-fit items-center gap-3">
             <span className="grid size-11 place-items-center rounded-xl bg-slate-950 text-cyan-200 shadow-[0_12px_28px_rgba(7,17,31,0.16)] transition group-hover:-translate-y-0.5">
@@ -92,7 +92,7 @@ function Footer() {
             calmer road decisions.
           </p>
 
-          <div className="mt-6 flex items-center gap-2">
+          <div className="mt-5 hidden items-center gap-2 sm:flex">
             {[
               ["Instagram", "instagram", "https://www.instagram.com"],
               ["LinkedIn", "linkedin", "https://www.linkedin.com"],
@@ -112,7 +112,7 @@ function Footer() {
           </div>
         </div>
 
-        <div className="grid gap-7 sm:grid-cols-3">
+        <div className="hidden gap-7 sm:grid sm:grid-cols-3">
           {footerLinks.map((group) => (
             <div key={group.title}>
               <h3 className="text-xs font-black uppercase tracking-[0.18em] text-slate-950">
@@ -135,9 +135,9 @@ function Footer() {
         </div>
       </div>
 
-      <div className="mx-auto mt-10 flex max-w-7xl flex-col gap-4 border-t border-slate-200 pt-6 text-sm font-semibold text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+      <div className="mx-auto mt-7 flex max-w-7xl flex-col gap-4 border-t border-slate-200 pt-5 text-sm font-semibold text-slate-500 sm:mt-10 sm:flex-row sm:items-center sm:justify-between sm:pt-6">
         <p>Built for safer travel decisions.</p>
-        <div className="flex flex-wrap gap-2">
+        <div className="hidden flex-wrap gap-2 sm:flex">
           {["Khargone pilot", "Community reports", "Safety scoring"].map((item) => (
             <span key={item} className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
               {item}

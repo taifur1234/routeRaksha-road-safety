@@ -135,21 +135,30 @@ function ProfilePage() {
 
     let isMounted = true;
 
-    Promise.allSettled([refreshProfile(), getMyReputation()])
-      .then(([profileResult, reputationResult]) => {
+    refreshProfile()
+      .then(async (profileResult) => {
         if (!isMounted) {
           return;
         }
 
-        if (profileResult.status === "fulfilled" && profileResult.value?.ok === false) {
-          setProfileError(profileResult.value.message || "Could not refresh profile.");
+        if (profileResult?.ok === false) {
+          setProfileError(profileResult.message || "Could not refresh profile.");
+          return;
         }
 
-        if (reputationResult.status === "fulfilled") {
-          setReputation(reputationResult.value);
+        try {
+          const nextReputation = await getMyReputation();
+
+          if (!isMounted) {
+            return;
+          }
+
+          setReputation(nextReputation);
           setError("");
-        } else {
-          setError(reputationResult.reason?.message || "Could not load reputation.");
+        } catch (error) {
+          if (isMounted) {
+            setError(error.message || "Could not load reputation.");
+          }
         }
       })
       .finally(() => {

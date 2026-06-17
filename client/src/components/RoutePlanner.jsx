@@ -1,10 +1,9 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
   clearRouteHistory,
   deleteSavedRoute,
-  findEmergencyServices,
   listRouteHistory,
   listSavedRoutes,
   recordRouteHistory,
@@ -251,14 +250,6 @@ function Icon({ name, className = "size-5", strokeWidth = 2 }) {
         <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" />
       </>
     ),
-    hospital: (
-      <>
-        <path d="M3 21h18" />
-        <path d="M5 21V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16" />
-        <path d="M9 10h6" />
-        <path d="M12 7v6" />
-      </>
-    ),
     shield: (
       <>
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
@@ -441,7 +432,7 @@ function LocationSuggestions({ suggestions, isSearching, onSelect }) {
       {!isSearching &&
         suggestions.map((suggestion) => (
           <button
-            key={suggestion.id}
+            key={`${suggestion.id}-${suggestion.lat}-${suggestion.lng}`}
             type="button"
             onMouseDown={(event) => event.preventDefault()}
             onClick={() => onSelect(suggestion)}
@@ -951,8 +942,12 @@ async function fetchBikeRoute(origin, destination, carRoute, waypoints = []) {
   };
 }
 
-function RoutePlanner() {
+function RoutePlanner({ mode = "planner" }) {
   const { isLoggedIn } = useAuth();
+  const navigate = useNavigate();
+  const routerLocation = useLocation();
+  const isRouteView = mode === "view";
+  const initialRouteState = isRouteView ? routerLocation.state : null;
   const [currentLocation, setCurrentLocation] = useState("");
   const [destination, setDestination] = useState("");
   const [selectedOrigin, setSelectedOrigin] = useState(null);
@@ -967,9 +962,11 @@ function RoutePlanner() {
   const [isSearchingDestination, setIsSearchingDestination] = useState(false);
   const [isMapReady, setIsMapReady] = useState(false);
   const [isRouteLoading, setIsRouteLoading] = useState(false);
-  const [routeSummary, setRouteSummary] = useState(null);
-  const [routeOptions, setRouteOptions] = useState([]);
-  const [selectedRouteType, setSelectedRouteType] = useState("balanced");
+  const [routeSummary, setRouteSummary] = useState(() => initialRouteState?.routeSummary || null);
+  const [routeOptions, setRouteOptions] = useState(() => initialRouteState?.routeOptions || []);
+  const [selectedRouteType, setSelectedRouteType] = useState(
+    () => initialRouteState?.selectedRouteType || initialRouteState?.routeSummary?.routeType || "balanced",
+  );
   const [savedRoutes, setSavedRoutes] = useState([]);
   const [routeHistory, setRouteHistory] = useState([]);
   const [routeSearch, setRouteSearch] = useState("");
@@ -982,12 +979,6 @@ function RoutePlanner() {
   const [savingRouteType, setSavingRouteType] = useState("");
   const [editingRouteId, setEditingRouteId] = useState("");
   const [editingRouteName, setEditingRouteName] = useState("");
-  const [emergencyServices, setEmergencyServices] = useState([]);
-  const [emergencyStatus, setEmergencyStatus] = useState("");
-  const [emergencyError, setEmergencyError] = useState("");
-  const [showHospitals, setShowHospitals] = useState(true);
-  const [showPolice, setShowPolice] = useState(true);
-  const [emergencyRadius, setEmergencyRadius] = useState(5000);
   const [isLiveTracking, setIsLiveTracking] = useState(false);
   const [navigationState, setNavigationState] = useState(null);
   const mapElementRef = useRef(null);
@@ -996,13 +987,13 @@ function RoutePlanner() {
   const dangerSegmentLayerRef = useRef(null);
   const markerLayerRef = useRef(null);
   const blackspotLayerRef = useRef(null);
-  const emergencyLayerRef = useRef(null);
   const liveNavigationLayerRef = useRef(null);
   const liveMarkerRef = useRef(null);
   const liveAccuracyCircleRef = useRef(null);
   const watchPositionIdRef = useRef(null);
   const routeSummaryRef = useRef(null);
   const lastLivePositionRef = useRef(null);
+  const hasRenderedInitialRouteRef = useRef(false);
 
   const getSearchBiasCenter = useCallback(function getSearchBiasCenter() {
     const center = mapRef.current?.getCenter?.();
@@ -1067,7 +1058,7 @@ function RoutePlanner() {
   }, []);
 
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn || !isRouteView) {
       return;
     }
 
@@ -1092,7 +1083,6 @@ function RoutePlanner() {
 
         markerLayerRef.current = L.layerGroup().addTo(mapRef.current);
         blackspotLayerRef.current = L.layerGroup().addTo(mapRef.current);
-        emergencyLayerRef.current = L.layerGroup().addTo(mapRef.current);
         dangerSegmentLayerRef.current = L.layerGroup().addTo(mapRef.current);
         liveNavigationLayerRef.current = L.layerGroup().addTo(mapRef.current);
         setIsMapReady(true);
@@ -1107,7 +1097,18 @@ function RoutePlanner() {
     return () => {
       isMounted = false;
     };
-  }, [isLoggedIn]);
+  }, [isLoggedIn, isRouteView]);
+
+  useEffect(() => {
+    if (!isRouteView || !isMapReady || !routeSummary || hasRenderedInitialRouteRef.current) {
+      return;
+    }
+
+    hasRenderedInitialRouteRef.current = true;
+    renderRouteOnMap(routeSummary);
+    window.setTimeout(() => mapRef.current?.invalidateSize?.(), 80);
+    startLiveNavigation(routeSummary);
+  }, [isMapReady, isRouteView, routeSummary]);
 
   useEffect(() => {
     if (!isLoggedIn || activeSuggestionField !== "origin") {
@@ -1438,7 +1439,6 @@ function RoutePlanner() {
     markerLayerRef.current.clearLayers();
     blackspotLayerRef.current.clearLayers();
     dangerSegmentLayerRef.current.clearLayers();
-    emergencyLayerRef.current?.clearLayers();
 
     L.marker([summary.origin.lat, summary.origin.lng])
       .addTo(markerLayerRef.current)
@@ -1537,9 +1537,6 @@ function RoutePlanner() {
 
   function selectRouteOption(option) {
     stopLiveNavigation("", true);
-    setEmergencyServices([]);
-    setEmergencyStatus("");
-    setEmergencyError("");
     setSelectedRouteType(option.routeType);
     setRouteSummary(option);
     renderRouteOnMap(option);
@@ -1554,7 +1551,7 @@ function RoutePlanner() {
       return;
     }
 
-    if (!isMapReady || !window.L || !mapRef.current) {
+    if (isRouteView && (!isMapReady || !window.L || !mapRef.current)) {
       setFormError("Map is not ready yet.");
       return;
     }
@@ -1563,8 +1560,6 @@ function RoutePlanner() {
     stopLiveNavigation("", true);
     setRouteSummary(null);
     setRouteOptions([]);
-    setEmergencyServices([]);
-    emergencyLayerRef.current?.clearLayers();
     markerLayerRef.current?.clearLayers();
     blackspotLayerRef.current?.clearLayers();
     dangerSegmentLayerRef.current?.clearLayers();
@@ -1663,8 +1658,21 @@ function RoutePlanner() {
       setRouteOptions(options);
       setSelectedRouteType(preferred.routeType);
       setRouteSummary(preferred);
-      renderRouteOnMap(preferred);
-      startLiveNavigation(preferred);
+
+      if (isRouteView) {
+        renderRouteOnMap(preferred);
+        startLiveNavigation(preferred);
+      } else {
+        setLocationStatus("Route found. Opening map view...");
+        navigate("/route-view", {
+          state: {
+            routeOptions: options,
+            routeSummary: preferred,
+            selectedRouteType: preferred.routeType,
+            searchedAt: Date.now(),
+          },
+        });
+      }
 
       recordRouteHistory({
         source: origin,
@@ -1766,78 +1774,6 @@ function RoutePlanner() {
     }
   }
 
-  function renderEmergencyMarkers(services) {
-    if (!window.L || !emergencyLayerRef.current) {
-      return;
-    }
-
-    const L = window.L;
-    emergencyLayerRef.current.clearLayers();
-
-    services.forEach((service) => {
-      const isHospital = service.type === "hospital";
-      const color = isHospital ? "#167a43" : "#f5c451";
-      const icon = L.divIcon({
-        className: `emergency-marker emergency-marker--${service.type}`,
-        html: `<span style="background:${color}">${isHospital ? "H" : "P"}</span>`,
-        iconSize: [30, 30],
-        iconAnchor: [15, 15],
-      });
-
-      L.marker([service.lat, service.lng], { icon })
-        .addTo(emergencyLayerRef.current)
-        .bindPopup(
-          `<div class="route-risk-popup">
-            <strong>${escapeHtml(service.name)}</strong>
-            <span>${isHospital ? "Hospital" : "Police Station"}</span>
-            ${service.address ? `<p>${escapeHtml(service.address)}</p>` : ""}
-            <span>${formatMeters(service.distanceFromRouteMeters ?? service.distanceFromCenterMeters)} from route</span>
-            ${service.phone ? `<span>${escapeHtml(service.phone)}</span>` : ""}
-          </div>`,
-        );
-    });
-  }
-
-  async function loadEmergencyServices() {
-    if (!routeSummary?.routeLatLngs?.length) {
-      setEmergencyError("Show a route first.");
-      return;
-    }
-
-    const types = [
-      showHospitals ? "hospital" : "",
-      showPolice ? "police" : "",
-    ].filter(Boolean);
-
-    if (!types.length) {
-      setEmergencyServices([]);
-      emergencyLayerRef.current?.clearLayers();
-      return;
-    }
-
-    setEmergencyStatus("Finding nearby emergency services...");
-    setEmergencyError("");
-
-    try {
-      const sampledRoutePoints = routeSummary.routeLatLngs
-        .filter((_, index) => index % 8 === 0)
-        .map(([lat, lng]) => ({ lat, lng }));
-      const data = await findEmergencyServices({
-        routePoints: sampledRoutePoints,
-        radiusMeters: emergencyRadius,
-        types,
-      });
-      const services = data.services || [];
-
-      setEmergencyServices(services);
-      renderEmergencyMarkers(services);
-      setEmergencyStatus(data.fallback ? "Showing local fallback emergency services." : "Emergency services loaded.");
-    } catch (error) {
-      setEmergencyError(error.message || "Emergency services are unavailable.");
-      setEmergencyStatus("");
-    }
-  }
-
   if (!isLoggedIn) {
     return (
       <main className="motion-page min-h-[calc(100vh-4.75rem)] bg-[#fbfcfa] px-4 py-12 text-[#173a0b] sm:px-6 lg:px-8">
@@ -1889,25 +1825,59 @@ function RoutePlanner() {
     );
   }
 
+  if (isRouteView && !routeSummary && !routeOptions.length) {
+    return (
+      <main className="motion-page min-h-[calc(100vh-4.75rem)] bg-[#fbfcfa] px-4 py-10 text-[#173a0b] sm:px-6 lg:px-8">
+        <section className="mx-auto max-w-3xl rounded-lg border border-[#d8e5d3] bg-white p-6 text-center shadow-[0_22px_55px_rgba(16,47,0,0.1)] sm:p-8">
+          <span className="mx-auto grid size-14 place-items-center rounded-lg bg-[#f1f6f0] text-[#173a0b]">
+            <Icon name="route" className="size-7" strokeWidth={2.4} />
+          </span>
+          <h1 className="mt-5 text-3xl font-black leading-tight text-[#173a0b]">
+            Plan a route first.
+          </h1>
+          <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-7 text-[#46623d]">
+            Route map data is opened after you search from the route planner.
+          </p>
+          <Link
+            to="/plan-route"
+            className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-[#173a0b] px-6 text-sm font-black text-white transition hover:bg-[#102f00]"
+          >
+            Go to route planner
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="motion-page bg-[#fbfcfa] text-[#113006]">
-      <section className="bg-[#e5eedf] px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+      <section className="bg-[#e5eedf] px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
         <div className="mx-auto max-w-7xl">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-[#173a0b]">
-            Plan Route
+            {isRouteView ? "Route View" : "Plan Route"}
           </p>
           <h1 className="mt-4 max-w-3xl text-4xl font-black leading-tight tracking-tight text-[#173a0b] sm:text-5xl">
-            Select pickup and destination to view the route.
+            {isRouteView ? "Map, safety score, and only the route details you need." : "Select pickup and destination to view the route."}
           </h1>
           <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-[#46623d] sm:text-base">
-            This uses OpenStreetMap routing and RouteRaksha's Madhya Pradesh blackspot layer.
+            {isRouteView
+              ? "Use this focused page while checking the route. Extra planning history stays out of the way."
+              : "This uses OpenStreetMap routing and RouteRaksha's Madhya Pradesh blackspot layer."}
           </p>
         </div>
       </section>
 
-      <section className="mx-auto grid max-w-7xl items-start gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[0.78fr_1.22fr] lg:px-8">
-        <aside className="rounded-lg border border-[#d8e5d3] bg-white p-5 shadow-[0_18px_45px_rgba(16,47,0,0.08)] sm:p-6">
-          <div className="flex items-start gap-4">
+      <section
+        className={`mx-auto grid max-w-7xl items-start gap-6 px-4 py-6 sm:px-6 lg:px-8 ${
+          isRouteView ? "lg:grid-cols-[0.44fr_0.56fr]" : "lg:max-w-4xl"
+        }`}
+      >
+        <aside className={`rounded-lg border border-[#d8e5d3] bg-white p-5 shadow-[0_18px_45px_rgba(16,47,0,0.08)] sm:p-6 ${
+          isRouteView ? "order-2 lg:order-1" : ""
+        }`}>
+          {!isRouteView && (
+            <>
+              <div className="flex items-start gap-4">
             <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-[#9cec6d] text-[#102f00]">
               <Icon name="route" className="size-5" strokeWidth={2.4} />
             </span>
@@ -2007,8 +1977,29 @@ function RoutePlanner() {
               </button>
             </div>
           </form>
+            </>
+          )}
 
-          {!isRouteLoading && routeOptions.length > 0 && (
+          {isRouteView && routeSummary && (
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-[#46623d]">
+                  Active route
+                </p>
+                <h2 className="mt-2 text-xl font-black leading-tight text-[#173a0b]">
+                  {routeSummary.from} to {routeSummary.to}
+                </h2>
+              </div>
+              <Link
+                to="/plan-route"
+                className="inline-flex min-h-10 items-center justify-center rounded-full border border-[#d8e5d3] bg-[#f7faf6] px-4 text-xs font-black text-[#173a0b] transition hover:bg-[#f1f6f0]"
+              >
+                Edit route
+              </Link>
+            </div>
+          )}
+
+          {!isRouteView && !isRouteLoading && routeOptions.length > 0 && (
             <div className="mt-5">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-black text-[#173a0b]">Compare routes</p>
@@ -2029,7 +2020,7 @@ function RoutePlanner() {
                       }`}
                     >
                       <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
+                        <div className="sm:border-l sm:border-[#e1eadc]">
                           <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.className}`}>
                             {meta.badge}
                           </span>
@@ -2078,7 +2069,7 @@ function RoutePlanner() {
             </div>
           )}
 
-          {routeSummary && (
+          {isRouteView && routeSummary && (
             <div className="mt-5 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] p-4">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-[#46623d]">
                 Route summary
@@ -2240,83 +2231,10 @@ function RoutePlanner() {
                 )}
               </div>
 
-              <div className="mt-4 rounded-lg border border-[#d8e5d3] bg-white p-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-black text-[#173a0b]">Nearby emergency services</p>
-                    <p className="mt-1 text-xs font-bold text-[#46623d]">
-                      Hospitals and police stations near this route.
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={loadEmergencyServices}
-                    className="min-h-10 rounded-full bg-[#173a0b] px-4 text-xs font-black text-white transition hover:bg-[#102f00]"
-                  >
-                    Search
-                  </button>
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                  <label className="flex items-center gap-2 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] px-3 py-2 text-xs font-black text-[#173a0b]">
-                    <input
-                      type="checkbox"
-                      checked={showHospitals}
-                      onChange={(event) => setShowHospitals(event.target.checked)}
-                    />
-                    Hospitals
-                  </label>
-                  <label className="flex items-center gap-2 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] px-3 py-2 text-xs font-black text-[#173a0b]">
-                    <input
-                      type="checkbox"
-                      checked={showPolice}
-                      onChange={(event) => setShowPolice(event.target.checked)}
-                    />
-                    Police
-                  </label>
-                  <label className="grid gap-1 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] px-3 py-2 text-xs font-black text-[#173a0b]">
-                    Radius
-                    <select
-                      value={emergencyRadius}
-                      onChange={(event) => setEmergencyRadius(Number(event.target.value))}
-                      className="rounded-md border border-[#cddcc7] bg-white px-2 py-1 text-xs font-bold"
-                    >
-                      <option value={3000}>3 km</option>
-                      <option value={5000}>5 km</option>
-                      <option value={10000}>10 km</option>
-                    </select>
-                  </label>
-                </div>
-                {emergencyStatus && (
-                  <p className="mt-3 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] px-3 py-2 text-xs font-bold text-[#46623d]">
-                    {emergencyStatus}
-                  </p>
-                )}
-                {emergencyError && (
-                  <p className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-bold text-red-700">
-                    {emergencyError}
-                  </p>
-                )}
-                {emergencyServices.length > 0 && (
-                  <div className="mt-3 grid gap-2">
-                    {emergencyServices.slice(0, 5).map((service) => (
-                      <div key={service.id} className="flex items-start justify-between gap-3 rounded-lg bg-[#f7faf6] p-3">
-                        <div>
-                          <p className="text-sm font-black text-[#173a0b]">{service.name}</p>
-                          <p className="mt-1 text-xs font-bold text-[#46623d]">
-                            {service.type === "hospital" ? "Hospital" : "Police Station"}
-                          </p>
-                        </div>
-                        <span className="shrink-0 rounded-full bg-white px-3 py-1 text-xs font-black text-[#46623d]">
-                          {formatMeters(service.distanceFromRouteMeters ?? service.distanceFromCenterMeters)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
           )}
 
+          {!isRouteView && (
           <div className="mt-5 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <p className="text-sm font-black text-[#173a0b]">Saved routes</p>
@@ -2437,7 +2355,9 @@ function RoutePlanner() {
               </div>
             )}
           </div>
+          )}
 
+          {!isRouteView && (
           <div className="mt-5 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] p-4">
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-black text-[#173a0b]">
@@ -2497,10 +2417,12 @@ function RoutePlanner() {
               </div>
             )}
           </div>
+          )}
 
         </aside>
 
-        <section className="rounded-lg border border-[#d8e5d3] bg-white p-4 shadow-[0_22px_55px_rgba(16,47,0,0.1)]">
+        {isRouteView && (
+        <section className="order-1 rounded-lg border border-[#d8e5d3] bg-white p-3 shadow-[0_22px_55px_rgba(16,47,0,0.1)] sm:p-4 lg:order-2">
           <div className="flex flex-wrap items-center justify-between gap-3 px-1 pb-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.22em] text-[#46623d]">
@@ -2530,7 +2452,7 @@ function RoutePlanner() {
             ))}
           </div>
 
-          <div className="relative min-h-[34rem] overflow-hidden rounded-lg border border-[#d8e5d3] bg-[#e5eedf]">
+          <div className="relative min-h-[65svh] overflow-hidden rounded-lg border border-[#d8e5d3] bg-[#e5eedf] lg:min-h-[34rem]">
             <div ref={mapElementRef} className="dark-leaflet-map absolute inset-0" />
 
             {mapError && (
@@ -2547,7 +2469,92 @@ function RoutePlanner() {
               </div>
             )}
           </div>
+
+          {!isRouteLoading && routeOptions.length > 0 && (
+            <div className="mt-4 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-black text-[#173a0b]">Compare routes</p>
+                <span className="rounded-full border border-[#d8e5d3] bg-white px-3 py-1 text-[11px] font-black text-[#46623d]">
+                  {routeOptions.length} options
+                </span>
+              </div>
+
+              <div className="mt-3 grid gap-3">
+                {routeOptions.map((option) => {
+                  const meta = getRouteTypeMeta(option.routeType);
+                  const isSelected = selectedRouteType === option.routeType;
+
+                  return (
+                    <article
+                      key={option.routeType}
+                      className={`rounded-lg border bg-white p-4 transition ${
+                        isSelected ? "border-[#173a0b] shadow-[0_16px_34px_rgba(16,47,0,0.12)]" : "border-[#d8e5d3]"
+                      }`}
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.className}`}>
+                            {meta.badge}
+                          </span>
+                          <h3 className="mt-2 text-base font-black text-[#173a0b]">{meta.label}</h3>
+                          <p className="mt-1 text-xs font-bold leading-5 text-[#46623d]">
+                            {option.routeMode}
+                          </p>
+                        </div>
+                        <div className="grid min-w-[12rem] grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => selectRouteOption(option)}
+                            className="min-h-10 rounded-full border border-[#173a0b] px-3 text-xs font-black text-[#173a0b] transition hover:bg-[#f1f6f0]"
+                          >
+                            {isSelected ? "Selected" : "View"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveRoute(option)}
+                            disabled={savingRouteType === option.routeType}
+                            className="flex min-h-10 items-center justify-center gap-2 rounded-full bg-[#173a0b] px-4 text-xs font-black text-white transition hover:bg-[#102f00] disabled:opacity-70"
+                          >
+                            <Icon name="save" className="size-4" />
+                            {savingRouteType === option.routeType ? "Saving..." : "Save"}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 overflow-x-auto rounded-lg border border-[#e1eadc]">
+                        <table className="w-full min-w-[34rem] border-collapse bg-[#f7faf6] text-left">
+                          <thead>
+                            <tr className="border-b border-[#e1eadc] text-[10px] font-black uppercase tracking-[0.1em] text-[#78936d]">
+                              <th className="px-4 py-3">Time</th>
+                              <th className="border-l border-[#e1eadc] px-4 py-3">Safety</th>
+                              <th className="border-l border-[#e1eadc] px-4 py-3">Distance</th>
+                              <th className="border-l border-[#e1eadc] px-4 py-3">Blackspots</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="text-sm font-black text-[#173a0b]">
+                              <td className="whitespace-nowrap px-4 py-3">{option.car.duration}</td>
+                              <td className="whitespace-nowrap border-l border-[#e1eadc] px-4 py-3">
+                                {option.safety.safetyScore}/100
+                              </td>
+                              <td className="whitespace-nowrap border-l border-[#e1eadc] px-4 py-3">
+                                {option.car.distance}
+                              </td>
+                              <td className="whitespace-nowrap border-l border-[#e1eadc] px-4 py-3">
+                                {option.blackSpotCount}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </section>
+        )}
       </section>
     </main>
   );

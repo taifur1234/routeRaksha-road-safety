@@ -15,7 +15,7 @@ const cockpitRows = [
 
 function HomeHero() {
   return (
-    <section className="rr-mobile-hero rr-road-band isolate min-h-[calc(92svh-4.7rem)] text-white">
+    <section className="rr-mobile-hero rr-road-band isolate text-white lg:min-h-[calc(92svh-4.7rem)]">
       <img
         src="/images/open-road-route.jpg"
         alt="Open highway route for blackspot-aware planning"
@@ -24,23 +24,23 @@ function HomeHero() {
       />
       <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(16,24,32,0.98)_0%,rgba(16,24,32,0.87)_52%,rgba(15,61,52,0.62)_100%)]" />
 
-      <div className="relative mx-auto grid max-w-7xl gap-8 px-4 pb-12 pt-12 sm:px-6 lg:grid-cols-[0.92fr_1.08fr] lg:px-8 lg:pb-16 lg:pt-16">
+      <div className="relative mx-auto grid max-w-7xl gap-8 px-4 pb-9 pt-9 sm:px-6 sm:pb-12 sm:pt-12 lg:grid-cols-[0.92fr_1.08fr] lg:px-8 lg:pb-16 lg:pt-16">
         <div className="self-center">
-          <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-black uppercase tracking-[0.18em] text-[#baf7da] backdrop-blur">
+          <p className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-2 text-[10px] font-black uppercase tracking-[0.14em] text-[#baf7da] backdrop-blur sm:px-4 sm:text-xs sm:tracking-[0.18em]">
             <HomeIcon name="shield" className="size-4" strokeWidth={2.4} />
-            Blackspot aware route planner
+            Blackspot route safety
           </p>
 
-          <h1 className="mt-6 max-w-3xl text-5xl font-black leading-[0.96] text-white sm:text-6xl lg:text-7xl">
+          <h1 className="mt-5 max-w-3xl text-5xl font-black leading-[0.96] text-white sm:mt-6 sm:text-6xl lg:text-7xl">
             Plan safer routes before the road surprises you.
           </h1>
 
-          <p className="mt-6 max-w-2xl text-base font-semibold leading-8 text-[#dce8e5] sm:text-lg">
+          <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-[#dce8e5] sm:mt-6 sm:text-lg sm:leading-8">
             RouteRaksha turns accident reports, risky turns, emergency context, and community
             verification into one clear safety cockpit for everyday travel.
           </p>
 
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row">
             <Link
               to="/plan-route"
               className="flex min-h-12 items-center justify-center gap-2 rounded-full bg-[#7ce7b2] px-6 text-sm font-black text-[#101820] shadow-[0_18px_42px_rgba(124,231,178,0.24)] hover:bg-[#9cf0c7]"
@@ -57,7 +57,18 @@ function HomeHero() {
             </Link>
           </div>
 
-          <div className="mt-8 grid max-w-2xl gap-3 sm:grid-cols-3">
+          <div className="mt-6 grid max-w-md grid-cols-2 gap-3 sm:hidden">
+            {impactStats.slice(0, 2).map(([value, label]) => (
+              <div key={label} className="border border-white/14 bg-white/[0.08] px-3 py-3 backdrop-blur">
+                <p className="text-xl font-black text-white">{value}</p>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-[0.1em] text-white/62">
+                  {label}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8 hidden max-w-2xl gap-3 sm:grid sm:grid-cols-3">
             {impactStats.map(([value, label]) => (
               <div key={label} className="border-l border-white/18 bg-white/[0.06] px-4 py-3 backdrop-blur">
                 <p className="text-2xl font-black text-white">{value}</p>
@@ -69,7 +80,7 @@ function HomeHero() {
           </div>
         </div>
 
-        <div className="self-center">
+        <div className="hidden self-center lg:block">
           <div className="rr-glass relative overflow-hidden p-3 text-[#101820]">
             <div className="grid overflow-hidden bg-[#f8fbfa] lg:grid-cols-[1.02fr_0.98fr]">
               <div className="relative min-h-[31rem] overflow-hidden">

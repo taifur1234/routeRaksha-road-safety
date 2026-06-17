@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import {
   deleteNotification,
   listNotifications,
@@ -16,6 +18,7 @@ const notificationTypes = [
 ];
 
 function NotificationsPage() {
+  const { isLoggedIn } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [pagination, setPagination] = useState(null);
   const [page, setPage] = useState(1);
@@ -26,6 +29,11 @@ function NotificationsPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   async function loadNotifications() {
+    if (!isLoggedIn) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
 
     try {
@@ -42,21 +50,43 @@ function NotificationsPage() {
 
   useEffect(() => {
     loadNotifications();
-  }, [page, type, read, search]);
+  }, [isLoggedIn, page, type, read, search]);
 
   async function handleRead(id) {
+    if (!isLoggedIn) return;
     await markNotificationRead(id);
     loadNotifications();
   }
 
   async function handleReadAll() {
+    if (!isLoggedIn) return;
     await markAllNotificationsRead();
     loadNotifications();
   }
 
   async function handleDelete(id) {
+    if (!isLoggedIn) return;
     await deleteNotification(id);
     loadNotifications();
+  }
+
+  if (!isLoggedIn) {
+    return (
+      <main className="motion-page min-h-[calc(100vh-4.75rem)] bg-[#fbfcfa] px-4 py-10 text-[#173a0b] sm:px-6 lg:px-8">
+        <section className="mx-auto max-w-3xl rounded-lg border border-[#d8e5d3] bg-white p-6 text-center shadow-[0_22px_55px_rgba(16,47,0,0.1)]">
+          <h1 className="text-3xl font-black">Login required</h1>
+          <p className="mx-auto mt-3 max-w-xl text-sm font-semibold leading-7 text-[#46623d]">
+            Sign in to view your RouteRaksha notifications.
+          </p>
+          <Link
+            to="/login"
+            className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-[#173a0b] px-6 text-sm font-black text-white"
+          >
+            Login
+          </Link>
+        </section>
+      </main>
+    );
   }
 
   return (

@@ -7,21 +7,26 @@ const insights = [
 
 function SafetyPreview() {
   return (
-    <section className="px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+    <section className="px-4 py-10 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
       <div className="mx-auto grid max-w-7xl overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white shadow-[0_28px_80px_rgba(7,17,31,0.11)] lg:grid-cols-[0.86fr_1.14fr]">
-        <div className="p-6 sm:p-8 lg:p-10">
+        <div className="p-5 sm:p-8 lg:p-10">
           <p className="rr-kicker text-xs font-black uppercase">Product preview</p>
-          <h2 className="mt-4 max-w-xl text-4xl font-black leading-tight tracking-tight text-slate-950 sm:text-5xl">
+          <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight tracking-tight text-slate-950 sm:mt-4 sm:text-5xl">
             Less noise. More signal before the road gets risky.
           </h2>
-          <p className="mt-5 max-w-xl text-base font-semibold leading-8 text-slate-600">
+          <p className="mt-4 max-w-xl text-sm font-semibold leading-7 text-slate-600 sm:mt-5 sm:text-base sm:leading-8">
             The interface keeps the important bits visible: danger zones, severity, route
             tradeoffs, and the action a driver should take next.
           </p>
 
-          <div className="mt-8 grid gap-3 sm:grid-cols-2">
-            {insights.map(([label, value, color]) => (
-              <div key={label} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-2">
+            {insights.map(([label, value, color], index) => (
+              <div
+                key={label}
+                className={`rounded-xl border border-slate-200 bg-slate-50 p-4 ${
+                  index > 1 ? "hidden sm:block" : ""
+                }`}
+              >
                 <p className={`text-2xl font-black ${color}`}>{value}</p>
                 <p className="mt-1 text-xs font-black uppercase tracking-[0.12em] text-slate-500">
                   {label}
@@ -30,17 +35,17 @@ function SafetyPreview() {
             ))}
           </div>
 
-          <div className="mt-8 rounded-2xl bg-slate-950 p-5 text-white">
+          <div className="mt-6 rounded-2xl bg-slate-950 p-4 text-white sm:mt-8 sm:p-5">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
               Decision summary
             </p>
-            <p className="mt-3 text-lg font-black leading-7">
+            <p className="mt-3 text-base font-black leading-7 sm:text-lg">
               Add 4 minutes, avoid 3 high-confidence blackspot reports.
             </p>
           </div>
         </div>
 
-        <div className="relative min-h-[32rem] overflow-hidden bg-slate-100">
+        <div className="relative hidden min-h-[32rem] overflow-hidden bg-slate-100 md:block">
           <img
             src="/images/risk-score-preview.jpg"
             alt="Route risk dashboard preview"

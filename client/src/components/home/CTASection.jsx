@@ -8,25 +8,25 @@ function CTASection() {
   const { isLoggedIn } = useAuth();
 
   return (
-    <section className="px-4 pb-16 pt-4 sm:px-6 lg:px-8 lg:pb-20">
+    <section className="px-4 pb-10 pt-0 sm:px-6 sm:pb-16 lg:px-8 lg:pb-20">
       <div className="mx-auto max-w-7xl">
-          <div className="relative overflow-hidden rounded-[1.6rem] bg-[#08111f] p-7 text-white shadow-[0_30px_90px_rgba(7,17,31,0.26)] sm:p-9 lg:p-12">
+        <div className="relative overflow-hidden rounded-[1.6rem] bg-[#08111f] p-5 text-white shadow-[0_30px_90px_rgba(7,17,31,0.26)] sm:p-9 lg:p-12">
           <div className="absolute inset-0 rr-grid opacity-15" />
           <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(20,184,216,0.18),transparent_42%,rgba(24,194,143,0.16))]" />
 
-          <div className="relative grid gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
+          <div className="relative grid gap-6 sm:gap-8 lg:grid-cols-[1fr_auto] lg:items-center">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-cyan-200">
                 Start with the product
               </p>
-              <h2 className="mt-4 max-w-3xl text-4xl font-black leading-tight tracking-tight sm:text-5xl">
+              <h2 className="mt-3 max-w-3xl text-3xl font-black leading-tight tracking-tight sm:mt-4 sm:text-5xl">
                 Make every route choice feel informed, calm, and defensible.
               </h2>
-              <p className="mt-5 max-w-2xl text-base font-semibold leading-8 text-slate-300">
+              <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-slate-300 sm:mt-5 sm:text-base sm:leading-8">
                 Plan a trip, compare risk, or contribute a report. RouteRaksha is ready for
                 a real startup demo flow, not just a landing page.
               </p>
-              <div className="mt-7 flex flex-wrap gap-2">
+              <div className="mt-5 hidden flex-wrap gap-2 sm:flex sm:mt-7">
                 {benefits.map((item) => (
                   <span
                     key={item}

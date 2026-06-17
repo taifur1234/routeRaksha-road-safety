@@ -57,7 +57,7 @@ function requestSanitizer(req, res, next) {
 }
 
 function securityHeaders(req, res, next) {
-  res.set("Cross-Origin-Opener-Policy", "same-origin");
+  res.set("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
   res.set("Cross-Origin-Resource-Policy", "same-origin");
   res.set("Origin-Agent-Cluster", "?1");
   res.set("Referrer-Policy", "no-referrer");

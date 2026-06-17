@@ -6,7 +6,7 @@ import {
   signOut,
 } from "firebase/auth";
 import { auth, googleProvider, hasFirebaseConfig } from "../config/firebase";
-import { authFetch } from "../utils/session";
+import { AUTH_INVALID_EVENT, authFetch, clearStoredSession, markAuthValid } from "../utils/session";
 
 const AuthContext = createContext(null);
 const SESSION_KEY = "routeRakshaSession";
@@ -60,6 +60,7 @@ function readSession() {
 }
 
 function writeSession(user, remember = true) {
+  markAuthValid();
   const safeUser = stripSensitiveSessionFields(user);
   localStorage.removeItem(`${SESSION_KEY}Temp`);
   sessionStorage.removeItem(`${SESSION_KEY}Temp`);
@@ -111,6 +112,7 @@ function AuthProvider({ children }) {
       const response = await authFetch(`${API_URL}/api/auth/${path}`, {
         method: "POST",
         body: JSON.stringify(body),
+        allowAfterAuthInvalidation: true,
       });
       const data = await response.json();
 
@@ -248,17 +250,24 @@ function AuthProvider({ children }) {
   }, [finishGoogleLogin]);
 
   const logout = useCallback(function logout() {
-    localStorage.removeItem(SESSION_KEY);
-    localStorage.removeItem(`${SESSION_KEY}Temp`);
-    sessionStorage.removeItem(`${SESSION_KEY}Temp`);
+    clearStoredSession();
 
-    authFetch(`${API_URL}/api/auth/logout`, { method: "POST" }).catch(() => {});
+    authFetch(`${API_URL}/api/auth/logout`, { method: "POST", allowAfterAuthInvalidation: true }).catch(() => {});
 
     if (auth?.currentUser) {
       signOut(auth).catch(() => {});
     }
 
     setUser(null);
+  }, []);
+
+  useEffect(() => {
+    function handleAuthInvalid() {
+      setUser(null);
+    }
+
+    window.addEventListener(AUTH_INVALID_EVENT, handleAuthInvalid);
+    return () => window.removeEventListener(AUTH_INVALID_EVENT, handleAuthInvalid);
   }, []);
 
   const refreshProfile = useCallback(async function refreshProfile() {

@@ -374,7 +374,7 @@ textarea:focus-visible {
 
 .motion-page,
 .rr-shell {
-  animation: pageEnter 520ms ease both;
+  animation: pageEnter 280ms ease both;
   background:
     radial-gradient(circle at 16% 0%, rgba(124, 231, 178, 0.16), transparent 26rem),
     radial-gradient(circle at 88% 8%, rgba(57, 119, 215, 0.12), transparent 26rem),
@@ -382,11 +382,11 @@ textarea:focus-visible {
 }
 
 .motion-nav {
-  animation: navDrop 420ms ease both;
+  animation: navDrop 240ms ease both;
 }
 
 .motion-card {
-  animation: cardEnter 580ms ease both;
+  animation: cardEnter 300ms ease both;
 }
 
 .motion-card:hover,
@@ -405,10 +405,10 @@ textarea:focus-visible {
 
 .scroll-reveal {
   opacity: 0;
-  transform: translate3d(0, 28px, 0) scale(0.985);
+  transform: translate3d(0, 16px, 0) scale(0.992);
   transition:
-    opacity 640ms ease,
-    transform 720ms cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 240ms ease,
+    transform 300ms cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: var(--reveal-delay, 0ms);
   will-change: opacity, transform;
 }
@@ -1050,12 +1050,37 @@ textarea:focus {
     min-height: auto;
   }
 
+  body {
+    background: #f8fbfa !important;
+  }
+
+  .motion-page {
+    overflow-x: clip;
+  }
+
+  .motion-nav nav {
+    height: 4.25rem !important;
+  }
+
   .motion-page h1 {
-    font-size: clamp(2.25rem, 11vw, 3.4rem) !important;
+    font-size: clamp(2.1rem, 10vw, 3rem) !important;
   }
 
   .motion-page h2 {
-    font-size: clamp(1.65rem, 8vw, 2.4rem) !important;
+    font-size: clamp(1.55rem, 7vw, 2.15rem) !important;
+  }
+
+  .motion-page p {
+    max-width: 100%;
+  }
+
+  .rr-grid {
+    background-size: 36px 36px;
+  }
+
+  .fixed.bottom-5.right-5 {
+    bottom: 1rem !important;
+    right: 1rem !important;
   }
 }
 

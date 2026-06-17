@@ -20,6 +20,7 @@ const PlanRoutePage = lazy(() => import("./pages/Plan-route"));
 const ProfilePage = lazy(() => import("./pages/Profile-page"));
 const ReportAccidentPage = lazy(() => import("./pages/Report-accident"));
 const ReportHistoryPage = lazy(() => import("./pages/Report-history"));
+const RouteViewPage = lazy(() => import("./pages/Route-view"));
 
 function AppShell() {
   const location = useLocation();
@@ -39,6 +40,7 @@ function AppShell() {
             <Routes>
               <Route path="/" element={<MainPage />} />
               <Route path="/plan-route" element={<PlanRoutePage />} />
+              <Route path="/route-view" element={<RouteViewPage />} />
               <Route path="/profile" element={<ProfilePage />} />
               <Route path="/leaderboard" element={<LeaderboardPage />} />
               <Route path="/notifications" element={<NotificationsPage />} />

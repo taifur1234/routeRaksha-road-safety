@@ -29,20 +29,20 @@ const values = [
 
 function ValueSection() {
   return (
-    <section className="px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
+    <section className="px-4 py-10 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
       <div className="mx-auto max-w-7xl">
-        <div className="grid gap-9 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
+        <div className="grid gap-6 sm:gap-9 lg:grid-cols-[0.72fr_1.28fr] lg:items-start">
           <div className="lg:sticky lg:top-28">
             <p className="rr-kicker text-xs font-black uppercase">Safety OS</p>
-            <h2 className="mt-4 max-w-xl text-4xl font-black leading-tight tracking-tight text-slate-950 sm:text-5xl">
+            <h2 className="mt-3 max-w-xl text-3xl font-black leading-tight tracking-tight text-slate-950 sm:mt-4 sm:text-5xl">
               A serious product layer for real road decisions.
             </h2>
-            <p className="mt-5 max-w-lg text-base font-semibold leading-8 text-slate-600">
+            <p className="mt-4 max-w-lg text-sm font-semibold leading-7 text-slate-600 sm:mt-5 sm:text-base sm:leading-8">
               RouteRaksha feels like a startup product because it behaves like one: focused
               information, clear tradeoffs, and workflows built around trust.
             </p>
 
-            <div className="mt-7 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(7,17,31,0.08)]">
+            <div className="mt-5 hidden overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_18px_50px_rgba(7,17,31,0.08)] sm:block lg:mt-7">
               <div className="grid grid-cols-3 divide-x divide-slate-200">
                 {[
                   ["Live", "alerts"],
@@ -64,7 +64,9 @@ function ValueSection() {
             {values.map((item, index) => (
               <article
                 key={item.title}
-                className={`rr-card rounded-2xl p-5 transition ${
+                className={`rr-card rounded-2xl p-4 transition sm:p-5 ${
+                  index > 1 ? "hidden sm:block" : ""
+                } ${
                   index === 1 ? "bg-slate-950 text-white" : ""
                 }`}
               >
@@ -84,10 +86,10 @@ function ValueSection() {
                     {item.stat}
                   </span>
                 </div>
-                <h3 className={`mt-7 text-xl font-black ${index === 1 ? "text-white" : "text-slate-950"}`}>
+                <h3 className={`mt-5 text-lg font-black sm:mt-7 sm:text-xl ${index === 1 ? "text-white" : "text-slate-950"}`}>
                   {item.title}
                 </h3>
-                <p className={`mt-3 text-sm font-semibold leading-7 ${index === 1 ? "text-slate-300" : "text-slate-600"}`}>
+                <p className={`mt-2 text-sm font-semibold leading-6 sm:mt-3 sm:leading-7 ${index === 1 ? "text-slate-300" : "text-slate-600"}`}>
                   {item.text}
                 </p>
               </article>
