@@ -3,10 +3,9 @@ import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Footer from "../components/home/Footer";
 import HomeIcon from "../components/home/HomeIcon";
+import { API_URL } from "../config/api";
 import { authFetch } from "../utils/session";
 import { cleanText, isValidEmail } from "../utils/validation";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 function Icon({ name, className = "size-5", strokeWidth = 2 }) {
   const icons = {

@@ -5,12 +5,12 @@ import {
   signInWithRedirect,
   signOut,
 } from "firebase/auth";
+import { API_URL } from "../config/api";
 import { auth, googleProvider, hasFirebaseConfig } from "../config/firebase";
 import { AUTH_INVALID_EVENT, authFetch, clearStoredSession, markAuthValid } from "../utils/session";
 
 const AuthContext = createContext(null);
 const SESSION_KEY = "routeRakshaSession";
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const POPUP_BLOCKED_CODES = new Set([
   "auth/cancelled-popup-request",
   "auth/operation-not-supported-in-this-environment",
@@ -20,6 +20,10 @@ const POPUP_BLOCKED_CODES = new Set([
 function googleAuthMessage(error) {
   if (error?.code === "auth/popup-closed-by-user") {
     return "Google login was cancelled. Please try again when you are ready.";
+  }
+
+  if (error?.code === "auth/unauthorized-domain") {
+    return "Google login is not allowed for this deployed domain. Add this site URL in Firebase Authentication authorized domains.";
   }
 
   return error?.message || "Google login failed. Please try again.";
@@ -122,7 +126,11 @@ function AuthProvider({ children }) {
 
       return data;
     } catch {
-      return { ok: false, message: "Server is not reachable. Please try again." };
+      return {
+        ok: false,
+        message:
+          "Server is not reachable. Check the deployed VITE_API_URL or API proxy, then try again.",
+      };
     }
   }, []);
 

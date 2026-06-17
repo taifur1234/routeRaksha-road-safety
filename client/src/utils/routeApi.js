@@ -1,6 +1,6 @@
 import { authFetch } from "./session";
+import { API_URL } from "../config/api";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const CACHE_TTL = 30 * 1000;
 const apiCache = new Map();
 const emergencyCache = new Map();

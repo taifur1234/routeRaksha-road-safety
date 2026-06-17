@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { createApiUrl } from "../config/api";
 import {
   clearRouteHistory,
   deleteSavedRoute,
@@ -28,7 +29,6 @@ const LEAFLET_SCRIPT_ID = "leaflet-js";
 const LEAFLET_CSS_ID = "leaflet-css";
 const LEAFLET_CSS_URL = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
 const LEAFLET_SCRIPT_URL = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000";
 const DEFAULT_CENTER = KHARGONE_CENTER;
 const SUGGESTION_MIN_LENGTH = 3;
 const SEARCH_BIAS_DEGREES = 0.65;
@@ -559,7 +559,7 @@ async function searchLocationSuggestions(query, biasCenter = DEFAULT_CENTER) {
 
 async function fetchGeoapifySuggestions(query, biasCenter = DEFAULT_CENTER) {
   const [lat, lng] = biasCenter;
-  const url = new URL(`${API_URL}/api/places/search`);
+  const url = createApiUrl("/api/places/search");
   url.searchParams.set("q", query);
   url.searchParams.set("lat", String(lat));
   url.searchParams.set("lng", String(lng));
@@ -1850,9 +1850,9 @@ function RoutePlanner({ mode = "planner" }) {
   }
 
   return (
-    <main className="motion-page bg-[#fbfcfa] text-[#113006]">
+    <main className="motion-page overflow-x-hidden bg-[#fbfcfa] text-[#113006]">
       <section className="bg-[#e5eedf] px-4 py-8 sm:px-6 lg:px-8 lg:py-12">
-        <div className="mx-auto max-w-7xl">
+        <div className="mx-auto max-w-7xl min-w-0">
           <p className="text-xs font-black uppercase tracking-[0.24em] text-[#173a0b]">
             {isRouteView ? "Route View" : "Plan Route"}
           </p>
@@ -1868,11 +1868,11 @@ function RoutePlanner({ mode = "planner" }) {
       </section>
 
       <section
-        className={`mx-auto grid max-w-7xl items-start gap-6 px-4 py-6 sm:px-6 lg:px-8 ${
-          isRouteView ? "lg:grid-cols-[0.44fr_0.56fr]" : "lg:max-w-4xl"
+        className={`mx-auto grid w-full max-w-7xl min-w-0 items-start gap-6 px-4 py-6 sm:px-6 lg:px-8 ${
+          isRouteView ? "lg:grid-cols-[minmax(0,0.44fr)_minmax(0,0.56fr)]" : "lg:max-w-4xl"
         }`}
       >
-        <aside className={`rounded-lg border border-[#d8e5d3] bg-white p-5 shadow-[0_18px_45px_rgba(16,47,0,0.08)] sm:p-6 ${
+        <aside className={`min-w-0 rounded-lg border border-[#d8e5d3] bg-white p-4 shadow-[0_18px_45px_rgba(16,47,0,0.08)] sm:p-6 ${
           isRouteView ? "order-2 lg:order-1" : ""
         }`}>
           {!isRouteView && (
@@ -1981,12 +1981,12 @@ function RoutePlanner({ mode = "planner" }) {
           )}
 
           {isRouteView && routeSummary && (
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
+            <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-xs font-black uppercase tracking-[0.2em] text-[#46623d]">
                   Active route
                 </p>
-                <h2 className="mt-2 text-xl font-black leading-tight text-[#173a0b]">
+                <h2 className="mt-2 break-words text-xl font-black leading-tight text-[#173a0b]">
                   {routeSummary.from} to {routeSummary.to}
                 </h2>
               </div>
@@ -2070,7 +2070,7 @@ function RoutePlanner({ mode = "planner" }) {
           )}
 
           {isRouteView && routeSummary && (
-            <div className="mt-5 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] p-4">
+            <div className="mt-5 min-w-0 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] p-3 sm:p-4">
               <p className="text-xs font-black uppercase tracking-[0.2em] text-[#46623d]">
                 Route summary
               </p>
@@ -2095,7 +2095,7 @@ function RoutePlanner({ mode = "planner" }) {
                 </p>
               )}
 
-              <div className="mt-4 rounded-lg border border-[#d8e5d3] bg-white p-3">
+              <div className="mt-4 min-w-0 rounded-lg border border-[#d8e5d3] bg-white p-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-sm font-black text-[#173a0b]">Live navigation</p>
@@ -2153,7 +2153,7 @@ function RoutePlanner({ mode = "planner" }) {
                 )}
               </div>
 
-              <div className="mt-4 rounded-lg border border-[#d8e5d3] bg-white p-3">
+              <div className="mt-4 min-w-0 rounded-lg border border-[#d8e5d3] bg-white p-3">
                 <div className="mb-4 grid gap-2 sm:grid-cols-3">
                   <div className="min-w-0 rounded-lg bg-[#f1f6f0] p-3">
                     <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#78936d]">Danger score</p>
@@ -2200,7 +2200,7 @@ function RoutePlanner({ mode = "planner" }) {
                           className="rounded-lg border border-[#e1eadc] bg-[#fbfcfa] p-3"
                         >
                           <div className="flex items-start justify-between gap-3">
-                            <div>
+                            <div className="min-w-0">
                               <p className="text-sm font-black text-[#173a0b]">
                                 {blackspot.location}
                               </p>
@@ -2422,7 +2422,7 @@ function RoutePlanner({ mode = "planner" }) {
         </aside>
 
         {isRouteView && (
-        <section className="order-1 rounded-lg border border-[#d8e5d3] bg-white p-3 shadow-[0_22px_55px_rgba(16,47,0,0.1)] sm:p-4 lg:order-2">
+        <section className="order-1 min-w-0 rounded-lg border border-[#d8e5d3] bg-white p-3 shadow-[0_22px_55px_rgba(16,47,0,0.1)] sm:p-4 lg:order-2">
           <div className="flex flex-wrap items-center justify-between gap-3 px-1 pb-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.22em] text-[#46623d]">
@@ -2452,7 +2452,7 @@ function RoutePlanner({ mode = "planner" }) {
             ))}
           </div>
 
-          <div className="relative min-h-[65svh] overflow-hidden rounded-lg border border-[#d8e5d3] bg-[#e5eedf] lg:min-h-[34rem]">
+          <div className="relative min-h-[62svh] w-full min-w-0 overflow-hidden rounded-lg border border-[#d8e5d3] bg-[#e5eedf] lg:min-h-[34rem]">
             <div ref={mapElementRef} className="dark-leaflet-map absolute inset-0" />
 
             {mapError && (
@@ -2471,7 +2471,7 @@ function RoutePlanner({ mode = "planner" }) {
           </div>
 
           {!isRouteLoading && routeOptions.length > 0 && (
-            <div className="mt-4 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] p-4">
+            <div className="mt-4 min-w-0 rounded-lg border border-[#d8e5d3] bg-[#f7faf6] p-3 sm:p-4">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-sm font-black text-[#173a0b]">Compare routes</p>
                 <span className="rounded-full border border-[#d8e5d3] bg-white px-3 py-1 text-[11px] font-black text-[#46623d]">
@@ -2487,11 +2487,11 @@ function RoutePlanner({ mode = "planner" }) {
                   return (
                     <article
                       key={option.routeType}
-                      className={`rounded-lg border bg-white p-4 transition ${
+                      className={`min-w-0 rounded-lg border bg-white p-3 transition sm:p-4 ${
                         isSelected ? "border-[#173a0b] shadow-[0_16px_34px_rgba(16,47,0,0.12)]" : "border-[#d8e5d3]"
                       }`}
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.className}`}>
                             {meta.badge}
@@ -2501,7 +2501,7 @@ function RoutePlanner({ mode = "planner" }) {
                             {option.routeMode}
                           </p>
                         </div>
-                        <div className="grid min-w-[12rem] grid-cols-2 gap-2">
+                        <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:w-auto sm:min-w-[12rem]">
                           <button
                             type="button"
                             onClick={() => selectRouteOption(option)}
@@ -2521,7 +2521,7 @@ function RoutePlanner({ mode = "planner" }) {
                         </div>
                       </div>
 
-                      <div className="mt-4 overflow-x-auto rounded-lg border border-[#e1eadc]">
+                      <div className="mt-4 max-w-full overflow-x-auto rounded-lg border border-[#e1eadc]">
                         <table className="w-full min-w-[34rem] border-collapse bg-[#f7faf6] text-left">
                           <thead>
                             <tr className="border-b border-[#e1eadc] text-[10px] font-black uppercase tracking-[0.1em] text-[#78936d]">

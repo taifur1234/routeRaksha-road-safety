@@ -1223,7 +1223,7 @@ function AdminPanel() {
         </aside>
 
         {/* ── CONTENT ── */}
-        <section className="px-5 py-6 sm:px-7 lg:px-8 lg:py-7">
+        <section className="min-w-0 px-4 py-6 sm:px-7 lg:px-8 lg:py-7">
 
           {/* page header */}
           <header className="mb-7 flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
@@ -1293,20 +1293,20 @@ function AdminPanel() {
 
           {/* ── OVERVIEW ── */}
           {activeView === "overview" && (
-            <div className="space-y-6">
-              <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="min-w-0 space-y-6">
+              <section className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4">
                 <StatCard type="total" value={summary.total} />
                 <StatCard type="pending" value={summary.pending} />
                 <StatCard type="approved" value={summary.approved} />
                 <StatCard type="high" value={summary.high} />
               </section>
 
-              <section className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+              <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(0,0.8fr)]">
                 <OrganicMap reports={reports} />
                 <BarChart title="Severity distribution" helper="Risk mix" data={severityData} />
               </section>
 
-              <section className="grid gap-5 xl:grid-cols-2">
+              <section className="grid min-w-0 gap-5 xl:grid-cols-2">
                 <DonutChart title="Review status" helper="Decision split" data={statusData} />
                 <VerificationSignalChart
                   title="Verification quality"
@@ -1315,25 +1315,25 @@ function AdminPanel() {
                 />
               </section>
 
-              <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+              <section className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
                 {/* playbook */}
-                <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                <div className="min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6">
                   <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Admin playbook</p>
                   <h2 className="mt-1 text-lg font-extrabold text-slate-800 mb-5">What to do next</h2>
                   <div className="space-y-3">
                     {playbook.map((item, index) => (
-                      <div key={item} className="flex gap-3 rounded-xl bg-slate-50 p-3.5">
+                      <div key={item} className="flex min-w-0 gap-3 rounded-xl bg-slate-50 p-3.5">
                         <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-indigo-500 text-xs font-extrabold text-white">
                           {index + 1}
                         </span>
-                        <p className="text-sm font-medium leading-relaxed text-slate-600">{item}</p>
+                        <p className="min-w-0 text-sm font-medium leading-relaxed text-slate-600">{item}</p>
                       </div>
                     ))}
                   </div>
                 </div>
 
                 {/* recent reports */}
-                <div className="rounded-2xl border border-slate-100 bg-white p-6 shadow-sm">
+                <div className="min-w-0 rounded-2xl border border-slate-100 bg-white p-4 shadow-sm sm:p-6">
                   <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Latest signals</p>
@@ -1351,13 +1351,13 @@ function AdminPanel() {
                     {recentReports.map((report) => (
                       <div
                         key={report.id}
-                        className="flex flex-col gap-2.5 rounded-xl border border-slate-100 p-3.5 sm:flex-row sm:items-center sm:justify-between hover:border-slate-200 hover:bg-slate-50 transition-colors"
+                        className="flex min-w-0 flex-col gap-2.5 rounded-xl border border-slate-100 p-3.5 sm:flex-row sm:items-center sm:justify-between hover:border-slate-200 hover:bg-slate-50 transition-colors"
                       >
                         <div className="min-w-0">
                           <p className="truncate text-sm font-bold text-slate-800">{report.location}</p>
                           <p className="mt-0.5 text-xs font-medium text-slate-400">{report.type || "Road risk"} · {formatDate(report.createdAt)}</p>
                         </div>
-                        <div className="flex shrink-0 gap-1.5">
+                        <div className="flex flex-wrap gap-1.5 sm:shrink-0">
                           <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider ${severityBadge(report.severity)}`}>
                             {report.severity || "Medium"}
                           </span>
