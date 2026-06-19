@@ -122,7 +122,7 @@ function AboutPage() {
           time, users can understand accident risk, blackspot history, and community alerts.
         </p>
 
-        <div className="mx-auto mt-8 max-w-4xl overflow-hidden rounded-lg bg-slate-950 text-left shadow-[0_22px_50px_rgba(15,23,42,0.18)]">
+        <div className="mx-auto mt-8 hidden max-w-4xl overflow-hidden rounded-lg bg-slate-950 text-left shadow-[0_22px_50px_rgba(15,23,42,0.18)] lg:block">
           <div className="relative min-h-[18rem] sm:min-h-[25rem]">
             {isOverviewPlaying ? (
               <div className="route-overview-video absolute inset-0 overflow-hidden bg-slate-950">

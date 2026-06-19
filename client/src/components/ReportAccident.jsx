@@ -546,8 +546,8 @@ function ReportAccident() {
       </section>
 
       <section className="px-4 py-14 sm:px-6 lg:px-8">
-        <div className="mx-auto grid max-w-7xl items-start gap-8 lg:grid-cols-[0.82fr_1.18fr]">
-          <aside className="rounded-lg bg-[#173a0b] p-7 text-white shadow-[0_24px_60px_rgba(16,47,0,0.16)] sm:p-8">
+        <div className="mx-auto grid w-full min-w-0 max-w-7xl items-start gap-8 lg:grid-cols-[0.82fr_1.18fr]">
+          <aside className="w-full min-w-0 rounded-lg bg-[#173a0b] p-7 text-white shadow-[0_24px_60px_rgba(16,47,0,0.16)] sm:p-8">
               <span className="grid size-14 place-items-center rounded-2xl bg-[#9cec6d] text-[#102f00]">
                 <Icon name="alert" className="size-7" strokeWidth={2.4} />
               </span>
@@ -585,14 +585,14 @@ function ReportAccident() {
 
           <form
             onSubmit={submitReport}
-            className="h-fit rounded-lg border border-[#d8e5d3] bg-white p-5 shadow-[0_24px_60px_rgba(16,47,0,0.1)] sm:p-7"
+            className="h-fit w-full min-w-0 overflow-hidden rounded-lg border border-[#d8e5d3] bg-white p-5 shadow-[0_24px_60px_rgba(16,47,0,0.1)] sm:p-7"
           >
-            <div className="flex items-start gap-4">
+            <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:gap-4">
               <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-[#9cec6d] text-[#102f00]">
                 <Icon name="file" className="size-6" strokeWidth={2.4} />
               </span>
-              <div>
-                <h2 className="text-3xl font-black leading-tight text-[#173a0b]">
+              <div className="min-w-0">
+                <h2 className="text-2xl font-black leading-tight text-[#173a0b] sm:text-3xl">
                   Accident report details
                 </h2>
                 <p className="mt-2 text-sm font-semibold leading-6 text-[#46623d]">
@@ -605,7 +605,7 @@ function ReportAccident() {
             <div className="mt-7 grid gap-5">
               <label className="grid gap-2 text-sm font-black text-[#173a0b]">
                 Accident location
-                <div className="flex gap-2">
+                <div className="flex min-w-0 gap-2">
                   <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-[#f1f6f0] text-[#173a0b]">
                     <Icon name="mapPin" className="size-5" strokeWidth={2.3} />
                   </span>
@@ -614,7 +614,7 @@ function ReportAccident() {
                     onChange={(event) => updateField("location", event.target.value)}
                     placeholder="Area, landmark, road name, or coordinates"
                     maxLength={180}
-                    className="min-h-12 w-full rounded-lg border border-[#cddcc7] bg-white px-4 text-sm font-semibold text-[#173a0b] outline-none placeholder:text-[#7f9478] focus:border-[#173a0b] focus:ring-4 focus:ring-[#9cec6d]/30"
+                    className="min-h-12 min-w-0 flex-1 rounded-lg border border-[#cddcc7] bg-white px-4 text-sm font-semibold text-[#173a0b] outline-none placeholder:text-[#7f9478] focus:border-[#173a0b] focus:ring-4 focus:ring-[#9cec6d]/30"
                   />
                 </div>
               </label>
@@ -636,7 +636,7 @@ function ReportAccident() {
               </div>
 
               <div className="overflow-hidden rounded-lg border border-[#d8e5d3] bg-[#f1f6f0]">
-                <div className="flex items-center justify-between gap-3 border-b border-[#d8e5d3] px-4 py-3">
+                <div className="flex flex-col gap-2 border-b border-[#d8e5d3] px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                   <p className="text-sm font-black text-[#173a0b]">Map location picker</p>
                   <p className="text-xs font-bold text-[#46623d]">{mapStatus}</p>
                 </div>
@@ -726,12 +726,12 @@ function ReportAccident() {
                 <p>
                   Accident image <span className="text-xs font-bold text-[#46623d]">(optional)</span>
                 </p>
-                <div className="flex flex-col gap-3 rounded-lg border border-dashed border-[#cddcc7] bg-[#f1f6f0] p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="flex min-w-0 flex-col gap-3 rounded-lg border border-dashed border-[#cddcc7] bg-[#f1f6f0] p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 items-center gap-3">
                     <span className="grid size-11 shrink-0 place-items-center rounded-lg bg-white text-[#173a0b]">
                       <Icon name="image" className="size-5" />
                     </span>
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-sm font-black text-[#173a0b]">
                         {form.imageName || "Add supporting photo"}
                       </p>
@@ -746,7 +746,7 @@ function ReportAccident() {
                     type="file"
                     accept="image/jpeg,image/png,image/webp"
                     onChange={handleImageUpload}
-                    className="text-sm font-bold text-[#46623d] file:mr-3 file:rounded-full file:border-0 file:bg-[#173a0b] file:px-4 file:py-2 file:text-sm file:font-black file:text-white"
+                    className="w-full min-w-0 max-w-full text-sm font-bold text-[#46623d] file:mr-3 file:rounded-full file:border-0 file:bg-[#173a0b] file:px-4 file:py-2 file:text-sm file:font-black file:text-white sm:w-auto"
                   />
                 </div>
                 {form.imageData && (
