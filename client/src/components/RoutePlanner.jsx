@@ -1342,11 +1342,19 @@ function RoutePlanner({ mode = "planner" }) {
     }
 
     if (mapRef.current) {
-      const currentZoom = mapRef.current.getZoom();
-      mapRef.current.setView([point.lat, point.lng], Math.max(currentZoom, 16), {
-        animate: true,
-        duration: 0.6,
-      });
+      const liveCenter = [point.lat, point.lng];
+
+      if (typeof mapRef.current.panTo === "function") {
+        mapRef.current.panTo(liveCenter, {
+          animate: true,
+          duration: 0.6,
+        });
+      } else {
+        mapRef.current.setView(liveCenter, mapRef.current.getZoom(), {
+          animate: true,
+          duration: 0.6,
+        });
+      }
     }
 
     setNavigationState({
