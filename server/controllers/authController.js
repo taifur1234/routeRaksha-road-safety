@@ -52,7 +52,7 @@ function sendAuthResponse(res, user, { remember = true } = {}) {
   };
 
   res.cookie(AUTH_COOKIE_NAME, token, authCookieOptions(remember));
-  return res.json({ ok: true, user: sessionUser, token });
+  return res.json({ ok: true, user: sessionUser });
 }
 
 function serializeSessionUser(user) {
