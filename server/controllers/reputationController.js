@@ -14,11 +14,23 @@ async function getLeaderboard(req, res) {
     ? req.query.sortBy
     : "reputationPoints";
   const direction = req.query.order === "asc" ? 1 : -1;
-  const filter = { role: { $ne: "admin" } };
+  const activeContributorFilter = {
+    $or: [
+      { reputationPoints: { $gt: 0 } },
+      { reportsSubmitted: { $gt: 0 } },
+      { approvedReports: { $gt: 0 } },
+      { "badges.0": { $exists: true } },
+    ],
+  };
+  const filter = { role: { $ne: "admin" }, ...activeContributorFilter };
 
   if (search) {
     const regex = new RegExp(search, "i");
-    filter.$or = [{ name: regex }, { email: regex }, { trustLevel: regex }];
+    filter.$and = [
+      activeContributorFilter,
+      { $or: [{ name: regex }, { email: regex }, { trustLevel: regex }] },
+    ];
+    delete filter.$or;
   }
 
   const [users, total] = await Promise.all([

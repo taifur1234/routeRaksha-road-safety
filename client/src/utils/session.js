@@ -13,7 +13,8 @@ function readJson(key, fallback) {
 }
 
 function getAuthToken() {
-  return "";
+  const session = readJson(SESSION_KEY, null) || readJson(`${SESSION_KEY}Temp`, null);
+  return session?.token || "";
 }
 
 function clearStoredSession() {
@@ -57,8 +58,10 @@ async function authFetch(url, options = {}) {
     throw new AuthRequiredError();
   }
 
+  const token = getAuthToken();
   const headers = {
     ...(options.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...(options.headers || {}),
   };
 

@@ -50,22 +50,15 @@ function readSessionJson(key, fallback) {
 function readSession() {
   const localUser = readJson(SESSION_KEY, null);
   const tempUser = readSessionJson(`${SESSION_KEY}Temp`, null);
-  const user = stripSensitiveSessionFields(localUser || tempUser);
-
-  if (localUser?.token) {
-    localStorage.setItem(SESSION_KEY, JSON.stringify(user));
-  }
-
-  if (tempUser?.token) {
-    sessionStorage.setItem(`${SESSION_KEY}Temp`, JSON.stringify(user));
-  }
-
-  return user;
+  return stripSensitiveSessionFields(localUser || tempUser);
 }
 
-function writeSession(user, remember = true) {
+function writeSession(user, remember = true, token = "") {
   markAuthValid();
-  const safeUser = stripSensitiveSessionFields(user);
+  const safeUser = {
+    ...stripSensitiveSessionFields(user),
+    ...(token ? { token } : {}),
+  };
   localStorage.removeItem(`${SESSION_KEY}Temp`);
   sessionStorage.removeItem(`${SESSION_KEY}Temp`);
 
@@ -97,15 +90,15 @@ function updateStoredSession(user) {
 
   if (existingLocal) {
     localStorage.setItem(SESSION_KEY, JSON.stringify(nextUser));
-    return nextUser;
+    return stripSensitiveSessionFields(nextUser);
   }
 
   if (existingTemp) {
     sessionStorage.setItem(`${SESSION_KEY}Temp`, JSON.stringify(nextUser));
-    return nextUser;
+    return stripSensitiveSessionFields(nextUser);
   }
 
-  return nextUser;
+  return stripSensitiveSessionFields(nextUser);
 }
 
 function AuthProvider({ children }) {
@@ -161,7 +154,7 @@ function AuthProvider({ children }) {
       return result;
     }
 
-    writeSession(result.user, true);
+    writeSession(result.user, true, result.token);
     setUser(result.user);
 
     return { ok: true };
@@ -174,7 +167,7 @@ function AuthProvider({ children }) {
       return result;
     }
 
-    writeSession(result.user, remember);
+    writeSession(result.user, remember, result.token);
     setUser(result.user);
 
     return {
@@ -195,7 +188,7 @@ function AuthProvider({ children }) {
       return backendResult;
     }
 
-    writeSession(backendResult.user, true);
+    writeSession(backendResult.user, true, backendResult.token);
     setUser(backendResult.user);
 
     return {

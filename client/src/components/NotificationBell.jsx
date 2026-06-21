@@ -7,6 +7,7 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "../utils/notificationApi";
+import { getAuthToken } from "../utils/session";
 
 const SOCKET_SCRIPT_ID = "socket-io-client-runtime";
 
@@ -80,6 +81,7 @@ function NotificationBell({ enabled = true }) {
     loadSocketClient()
       .then((io) => {
         socket = io(getSocketUrl(), {
+          auth: { token: getAuthToken() },
           withCredentials: true,
           transports: ["websocket", "polling"],
         });
